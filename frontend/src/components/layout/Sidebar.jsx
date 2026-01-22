@@ -177,7 +177,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
             <span className="font-medium">{t('nav.logout')}</span>
           </button>
         </div>
-      </motion.aside>
+      </aside>
     </>
   );
 };
