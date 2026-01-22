@@ -36,7 +36,7 @@ const navItems = [
   { path: '/strategy', icon: Target, label: 'Strategia' },
   { path: '/montecarlo', icon: Calculator, label: 'Risk' },
   { path: '/psychology', icon: Brain, label: 'Psicologia' },
-  { path: '/journal', icon: BookOpen, label: 'Diario' },
+  { path: '/journal', icon: BookOpen, label: 'Journal' },
   { path: '/community', icon: Users, label: 'Community' },
   { path: '/ai', icon: Bot, label: 'AI' },
 ];
