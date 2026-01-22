@@ -192,9 +192,6 @@ export default function DashboardPage() {
         </div>
       </motion.div>
 
-      {/* Price Ticker */}
-      <PriceTicker prices={prices} />
-
       {/* Market Overview */}
       <section>
         <div className="flex items-center justify-between mb-4">
