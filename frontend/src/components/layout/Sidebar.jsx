@@ -122,7 +122,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
             data-testid="nav-settings"
           >
             <Settings className={cn(
-              "w-6 h-6",
+              "w-7 h-7",
               location.pathname === '/settings' ? "text-primary" : "text-muted-foreground"
             )} />
           </NavLink>
