@@ -60,13 +60,11 @@ export const Sidebar = ({ isOpen, onClose }) => {
       </AnimatePresence>
 
       {/* Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ x: isOpen ? 0 : '-100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+      <aside
         className={cn(
           "fixed top-0 left-0 h-full w-64 bg-card/95 backdrop-blur-xl border-r border-border z-50",
-          "flex flex-col",
+          "flex flex-col transition-transform duration-300 ease-out",
+          isOpen ? "translate-x-0" : "-translate-x-full",
           "lg:translate-x-0"
         )}
         data-testid="sidebar"
