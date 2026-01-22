@@ -72,12 +72,13 @@ export const Sidebar = ({ isOpen, onClose }) => {
         data-testid="sidebar-desktop"
       >
         {/* Logo */}
-        <div className="mb-4">
-          <div className="w-12 h-12 rounded-xl overflow-hidden bg-black flex items-center justify-center">
+        <div className="mb-4 relative">
+          <div className="w-16 h-16 relative -ml-1">
             <img 
               src="https://customer-assets.emergentagent.com/job_38b9976a-3c50-4a7a-8095-13c48833e390/artifacts/2fkya7wo_K%20%28Logo%29%20copia.png" 
               alt="Logo"
-              className="w-10 h-10 object-contain"
+              className="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(180,140,60,0.5)] transform scale-125 translate-x-1"
+              style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))' }}
             />
           </div>
         </div>
