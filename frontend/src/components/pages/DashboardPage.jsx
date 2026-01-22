@@ -81,7 +81,7 @@ const PriceTicker = ({ prices }) => {
           <span className="font-mono text-sm">${data.price?.toLocaleString()}</span>
           <span className={cn(
             "text-xs font-medium px-2 py-0.5 rounded",
-            data.change >= 0 ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+            data.change >= 0 ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
           )}>
             {data.change >= 0 ? '+' : ''}{data.change}%
           </span>
