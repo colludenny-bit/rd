@@ -112,36 +112,11 @@ export const Sidebar = ({ isOpen, onClose }) => {
 
         {/* Bottom Actions */}
         <div className="flex flex-col items-center gap-1 mt-2 w-full px-1">
-          {/* Language */}
-          <button className="w-full py-2 rounded-xl flex flex-col items-center gap-1 hover:bg-secondary transition-colors">
-            <Globe className="w-6 h-6 text-muted-foreground" />
-            <span className="text-[10px] font-medium text-muted-foreground">Lingua</span>
-          </button>
-
-          {/* Theme Toggle */}
-          <button 
-            onClick={toggleTheme}
-            className="w-full py-2 rounded-xl flex flex-col items-center gap-1 hover:bg-secondary transition-colors"
-            data-testid="theme-toggle"
-          >
-            {theme === 'dark' ? (
-              <>
-                <Moon className="w-6 h-6 text-muted-foreground" />
-                <span className="text-[10px] font-medium text-muted-foreground">Tema</span>
-              </>
-            ) : (
-              <>
-                <Sun className="w-6 h-6 text-muted-foreground" />
-                <span className="text-[10px] font-medium text-muted-foreground">Tema</span>
-              </>
-            )}
-          </button>
-
-          {/* Settings */}
+          {/* Settings Only */}
           <NavLink
             to="/settings"
             className={cn(
-              "w-full py-2 rounded-xl flex flex-col items-center gap-1 transition-colors hover:bg-secondary",
+              "w-12 h-12 rounded-xl flex items-center justify-center transition-colors hover:bg-secondary",
               location.pathname === '/settings' && "bg-primary/20"
             )}
             data-testid="nav-settings"
@@ -150,21 +125,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
               "w-6 h-6",
               location.pathname === '/settings' ? "text-primary" : "text-muted-foreground"
             )} />
-            <span className={cn(
-              "text-[10px] font-medium",
-              location.pathname === '/settings' ? "text-primary" : "text-muted-foreground"
-            )}>Settings</span>
           </NavLink>
-
-          {/* Logout */}
-          <button
-            onClick={logout}
-            className="w-full py-2 rounded-xl flex flex-col items-center gap-1 hover:bg-red-500/10 transition-colors"
-            data-testid="logout-btn"
-          >
-            <LogOut className="w-6 h-6 text-red-400" />
-            <span className="text-[10px] font-medium text-red-400">Esci</span>
-          </button>
         </div>
       </aside>
 
