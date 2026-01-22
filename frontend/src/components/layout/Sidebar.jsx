@@ -100,7 +100,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
                   isActive ? "text-primary" : "text-muted-foreground"
                 )} />
                 <span className={cn(
-                  "text-[8px] font-medium leading-tight text-center",
+                  "text-[9px] font-medium leading-tight text-center",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}>
                   {item.label}
