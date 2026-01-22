@@ -89,18 +89,18 @@ export const Sidebar = ({ isOpen, onClose }) => {
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "w-full py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all duration-200",
+                  "w-full py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all duration-200",
                   "hover:bg-primary/10",
                   isActive && "bg-primary/20"
                 )}
                 data-testid={`nav-${item.label.toLowerCase()}`}
               >
                 <Icon className={cn(
-                  "w-6 h-6",
+                  "w-7 h-7",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )} />
                 <span className={cn(
-                  "text-[10px] font-medium leading-tight text-center",
+                  "text-[8px] font-medium leading-tight text-center",
                   isActive ? "text-primary" : "text-muted-foreground"
                 )}>
                   {item.label}
