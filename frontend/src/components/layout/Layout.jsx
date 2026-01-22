@@ -17,7 +17,7 @@ export const Layout = () => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content */}
-      <main className="lg:ml-16 min-h-screen pb-20 lg:pb-0">
+      <main className="lg:ml-20 min-h-screen pb-20 lg:pb-0">
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-30 glass border-b border-border">
           <div className="flex items-center justify-between px-4 py-3">
