@@ -375,6 +375,72 @@ async def get_journal_entries(current_user: dict = Depends(get_current_user)):
     ).sort("created_at", -1).to_list(100)
     return entries
 
+@api_router.post("/journal/analyze")
+async def analyze_journal_entry(data: dict, current_user: dict = Depends(get_current_user)):
+    """Analyze journal entry and provide coach-friend feedback"""
+    entry = data.get("entry", {})
+    
+    # Generate AI response in coach-friend style
+    if EMERGENT_LLM_KEY:
+        try:
+            from emergentintegrations.llm.chat import LlmChat, UserMessage
+            
+            system_message = """Sei Karion, il coach-amico del trader. Il tuo compito è aiutare, non interrogare.
+            
+Rispondi in 4 blocchi brevi:
+1. "Ti ho capito così" - 1-2 frasi che rispecchiano il suo testo (empatia)
+2. "Il punto chiave di oggi" - 1 causa principale (non 5)
+3. "Cosa hai fatto bene" - 1 cosa replicabile
+4. "Ottimizzazione per domani" - 1 azione singola, specifica e testabile
+
+Stile: caldo, diretto, senza giudicare. Se c'è un errore, trattalo come informazione utile.
+Rispondi in JSON con chiavi: understood, keyPoint, wellDone, optimization"""
+            
+            chat = LlmChat(
+                api_key=EMERGENT_LLM_KEY,
+                session_id=f"journal-analyze-{current_user['id']}-{datetime.now().timestamp()}",
+                system_message=system_message
+            ).with_model("openai", "gpt-5.2")
+            
+            prompt = f"""Analizza questa entry del trader:
+- Traded: {entry.get('traded', 'N/A')}
+- Mood: {entry.get('mood', 5)}/10, Focus: {entry.get('focus', 5)}/10
+- Stress: {entry.get('stress', 5)}/10, Energy: {entry.get('energy', 5)}/10
+- Testo: {entry.get('freeText', '')}
+- Influenza principale: {entry.get('mainInfluence', '')}
+- Cosa cambierebbe: {entry.get('changeOne', '')}
+- PnL: {entry.get('pnl', 'N/A')}"""
+
+            msg = UserMessage(text=prompt)
+            response = await chat.send_message(msg)
+            
+            # Try to parse JSON response
+            try:
+                import json
+                return json.loads(response)
+            except:
+                # Fallback parsing
+                return {
+                    "understood": response[:200] if len(response) > 200 else response,
+                    "keyPoint": "Hai mostrato consapevolezza nel riconoscere le tue emozioni.",
+                    "wellDone": "Hai completato il journal, questo è già un grande passo.",
+                    "optimization": entry.get('changeOne', 'Domani, concentrati su una sola cosa: seguire il piano.')
+                }
+                
+        except Exception as e:
+            logger.error(f"Journal analyze error: {e}")
+    
+    # Fallback response
+    mood = entry.get('mood', 5)
+    traded = entry.get('traded', False)
+    
+    return {
+        "understood": f"Hai avuto una giornata {'positiva' if mood > 6 else 'impegnativa' if mood < 4 else 'nella norma'}. {'Hai tradato' if traded else 'Non hai tradato'} e il tuo focus era a {entry.get('focus', 5)}/10.",
+        "keyPoint": entry.get('mainInfluence', 'Hai mantenuto la disciplina.'),
+        "wellDone": "Hai completato il journal - questo è già disciplina." if mood > 4 else "Hai riconosciuto i tuoi limiti oggi.",
+        "optimization": entry.get('changeOne', 'Domani, una sola priorità: seguire il piano senza eccezioni.')
+    }
+
 # ==================== STRATEGY ROUTES ====================
 
 @api_router.post("/strategy", response_model=Strategy)
