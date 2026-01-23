@@ -19,8 +19,8 @@ export const Layout = () => {
       {/* Main Content */}
       <main className="lg:ml-20 min-h-screen pb-20 lg:pb-0">
         {/* Desktop Header with Karion Title */}
-        <header className="hidden lg:flex items-center justify-center py-4 border-b border-border/30">
-          <h1 className="text-2xl font-bold tracking-widest">
+        <header className="hidden lg:flex items-center justify-center py-5 border-b border-border/30">
+          <h1 className="text-3xl font-bold tracking-[0.3em] glow-gold">
             <span className="text-gold">KARION</span>
           </h1>
         </header>
@@ -35,10 +35,10 @@ export const Layout = () => {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <h1 className="text-xl font-bold tracking-widest">
+            <h1 className="text-2xl font-bold tracking-[0.2em]">
               <span className="text-gold">KARION</span>
             </h1>
-            <div className="w-10" /> {/* Spacer for centering */}
+            <div className="w-10" />
           </div>
         </header>
 
