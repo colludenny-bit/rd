@@ -21,18 +21,24 @@ import {
   Newspaper,
   AlertTriangle,
   BarChart3,
-  Dices
+  Dices,
+  Activity,
+  Globe,
+  Bitcoin
 } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/report', icon: BarChart3, label: 'Report' },
   { path: '/news', icon: Newspaper, label: 'News' },
+  { path: '/macro', icon: Globe, label: 'Macro' },
   { path: '/risk', icon: AlertTriangle, label: 'Risk' },
   { path: '/cot', icon: TrendingUp, label: 'COT' },
-  { path: '/statistics', icon: LineChart, label: 'Statistiche' },
+  { path: '/options', icon: Activity, label: 'Options' },
+  { path: '/statistics', icon: LineChart, label: 'Stats' },
   { path: '/strategy', icon: Target, label: 'Strategia' },
   { path: '/montecarlo', icon: Dices, label: 'Monte Carlo' },
+  { path: '/crypto', icon: Bitcoin, label: 'Crypto' },
   { path: '/journal', icon: BookOpen, label: 'Journal' },
   { path: '/psychology', icon: Brain, label: 'Psicologia' },
   { path: '/ai', icon: Sparkles, label: 'Karion AI' },
