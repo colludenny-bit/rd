@@ -285,8 +285,18 @@ export default function MonteCarloPage() {
         <h1 className="text-3xl font-bold flex items-center gap-3">
           <Dices className="w-8 h-8 text-primary" />
           Monte Carlo Simulation
+          {importedStrategy && (
+            <span className="text-lg font-normal text-primary ml-2">
+              — {importedStrategy.name}
+            </span>
+          )}
         </h1>
-        <p className="text-muted-foreground mt-1">Analisi probabilistica con 10.000 scenari</p>
+        <p className="text-muted-foreground mt-1">
+          {importedStrategy 
+            ? `Simulazione per strategia: ${importedStrategy.name}`
+            : 'Analisi probabilistica con 10.000 scenari'
+          }
+        </p>
       </motion.div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
