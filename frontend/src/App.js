@@ -26,6 +26,7 @@ import SettingsPage from './components/pages/SettingsPage';
 import NewsPage from './components/pages/NewsPage';
 import ReportPage from './components/pages/ReportPage';
 import RiskPage from './components/pages/RiskPage';
+import COTPage from './components/pages/COTPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -95,6 +96,7 @@ function AppRoutes() {
         <Route path="charts" element={<ChartsPage />} />
         <Route path="news" element={<NewsPage />} />
         <Route path="risk" element={<RiskPage />} />
+        <Route path="cot" element={<COTPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
         <Route path="montecarlo" element={<MonteCarloPage />} />
         <Route path="psychology" element={<PsychologyPage />} />
