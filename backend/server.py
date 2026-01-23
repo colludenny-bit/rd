@@ -778,6 +778,431 @@ async def get_market_prices():
     _market_cache["timestamp"] = now
     return prices
 
+# ==================== MULTI-SOURCE ENGINE (Hourly Analysis) ====================
+
+class AssetAnalysis(BaseModel):
+    symbol: str
+    direction: str  # Up/Down/Neutral
+    p_up: int  # 0-100
+    confidence: int  # 0-100
+    impulse: str  # Prosegue/Diminuisce/Inverte
+    drivers: List[Dict[str, str]]
+    invalidation: str
+    regime: str  # Risk-On/Risk-Off/Mixed
+    next_event: Optional[Dict[str, Any]]
+    trade_ready: bool
+    last_update: str
+
+# Store for multi-source scores (in-memory cache)
+_multi_source_cache = {}
+
+def calculate_multi_source_score(symbol: str, vix_data: dict, prices: dict):
+    """
+    Multi-source engine combining:
+    1. VIX/Regime (35%)
+    2. Macro (30%)
+    3. News Flow (20%)
+    4. COT Positioning (15%)
+    """
+    vix = vix_data.get("current", 18)
+    vix_change = vix_data.get("change", 0)
+    vix_direction = vix_data.get("direction", "stable")
+    
+    # Asset-specific weights
+    weights = {
+        "XAUUSD": {"vix": 0.20, "macro": 0.35, "news": 0.25, "cot": 0.20},
+        "NAS100": {"vix": 0.35, "macro": 0.30, "news": 0.20, "cot": 0.15},
+        "SP500": {"vix": 0.35, "macro": 0.30, "news": 0.20, "cot": 0.15},
+        "EURUSD": {"vix": 0.15, "macro": 0.35, "news": 0.30, "cot": 0.20}
+    }
+    w = weights.get(symbol, weights["SP500"])
+    
+    # 1) VIX/Regime Score (-1 to 1)
+    vix_score = 0
+    if vix < 14:
+        vix_score = 0.8
+    elif vix < 18:
+        vix_score = 0.5
+    elif vix < 22:
+        vix_score = 0.1
+    elif vix < 28:
+        vix_score = -0.4
+    else:
+        vix_score = -0.8
+    
+    # Momentum adjustment
+    if vix_change > 8:
+        vix_score -= 0.4
+    elif vix_change > 4:
+        vix_score -= 0.2
+    elif vix_change < -4:
+        vix_score += 0.2
+    elif vix_change < -8:
+        vix_score += 0.4
+    
+    # 2) Macro Score (simulated with market context)
+    price_data = prices.get(symbol, {})
+    price_change = price_data.get("change", 0)
+    
+    macro_score = 0
+    if symbol == "XAUUSD":
+        # Gold benefits from risk-off
+        macro_score = -vix_score * 0.5 + (random.random() * 0.2 - 0.1)
+    elif symbol == "EURUSD":
+        # EUR/USD sensitive to rate differentials
+        macro_score = (random.random() * 0.4 - 0.2)
+    else:
+        # Indices follow risk sentiment
+        macro_score = vix_score * 0.3 + (random.random() * 0.2 - 0.1)
+    
+    # 3) News Score (decay applied, simulated)
+    news_score = (random.random() * 0.3 - 0.15)
+    
+    # 4) COT Score (weekly bias, simulated)
+    cot_score = (random.random() * 0.4 - 0.2)
+    
+    # Combined Score
+    total_score = (
+        w["vix"] * vix_score +
+        w["macro"] * macro_score +
+        w["news"] * news_score +
+        w["cot"] * cot_score
+    )
+    
+    # Convert to probability (logistic)
+    p_up = int(100 / (1 + math.exp(-total_score * 4)))
+    
+    # Confidence based on score magnitude and VIX stability
+    confidence = min(95, int(50 + abs(total_score) * 45))
+    if abs(vix_change) > 5:
+        confidence = max(30, confidence - 15)
+    
+    # Direction
+    direction = "Neutral"
+    if p_up >= 58:
+        direction = "Up"
+    elif p_up <= 42:
+        direction = "Down"
+    
+    # Impulse calculation
+    prev_key = f"{symbol}_prev_score"
+    prev_score = _multi_source_cache.get(prev_key, total_score)
+    
+    impulse = "Prosegue"
+    score_change = total_score - prev_score
+    if abs(score_change) < 0.03:
+        impulse = "Prosegue"
+    elif (total_score > 0 and score_change < -0.05) or (total_score < 0 and score_change > 0.05):
+        impulse = "Diminuisce"
+    elif abs(score_change) > 0.1 and (total_score * prev_score < 0):
+        impulse = "Inverte"
+    
+    _multi_source_cache[prev_key] = total_score
+    
+    # Drivers
+    drivers = []
+    if abs(w["vix"] * vix_score) > 0.08:
+        drivers.append({
+            "name": "VIX/Regime",
+            "impact": "bullish" if vix_score > 0 else "bearish",
+            "detail": f"VIX {vix:.1f} ({vix_direction})"
+        })
+    if abs(w["macro"] * macro_score) > 0.05:
+        drivers.append({
+            "name": "Macro",
+            "impact": "bullish" if macro_score > 0 else "bearish",
+            "detail": "Tassi/Yield"
+        })
+    if abs(w["news"] * news_score) > 0.03:
+        drivers.append({
+            "name": "News Flow",
+            "impact": "bullish" if news_score > 0 else "bearish",
+            "detail": "Sentiment recente"
+        })
+    if len(drivers) < 2:
+        drivers.append({
+            "name": "COT Positioning",
+            "impact": "bullish" if cot_score > 0 else "bearish",
+            "detail": "Bias settimanale"
+        })
+    
+    # Regime
+    regime = "Mixed"
+    if vix < 18 and vix_change < 2:
+        regime = "Risk-On"
+    elif vix > 22 or vix_change > 5:
+        regime = "Risk-Off"
+    
+    # Trade ready (high conviction only)
+    trade_ready = (p_up >= 60 or p_up <= 40) and confidence >= 65 and impulse != "Inverte"
+    
+    # Invalidation level
+    price = price_data.get("price", 0)
+    if direction == "Up":
+        invalidation = f"Sotto {price * 0.995:.2f}" if symbol != "EURUSD" else f"Sotto {price * 0.995:.5f}"
+    elif direction == "Down":
+        invalidation = f"Sopra {price * 1.005:.2f}" if symbol != "EURUSD" else f"Sopra {price * 1.005:.5f}"
+    else:
+        invalidation = "Attendere breakout direzionale"
+    
+    return {
+        "symbol": symbol,
+        "direction": direction,
+        "p_up": p_up,
+        "confidence": confidence,
+        "impulse": impulse,
+        "drivers": drivers[:3],
+        "invalidation": invalidation,
+        "regime": regime,
+        "trade_ready": trade_ready,
+        "total_score": round(total_score, 4)
+    }
+
+@api_router.get("/analysis/multi-source")
+async def get_multi_source_analysis():
+    """Get hourly multi-source analysis for all assets"""
+    now = datetime.now(timezone.utc)
+    
+    # Get VIX and prices
+    vix_data = await get_vix_data()
+    prices = await get_market_prices()
+    
+    analyses = {}
+    for symbol in ["XAUUSD", "NAS100", "SP500", "EURUSD"]:
+        analysis = calculate_multi_source_score(symbol, vix_data, prices)
+        analysis["last_update"] = now.strftime("%H:%M")
+        analysis["price"] = prices.get(symbol, {}).get("price", 0)
+        analyses[symbol] = analysis
+    
+    # Next macro event
+    current_hour = now.hour
+    next_event = None
+    for event in MACRO_EVENTS:
+        event_hour = int(event["time"].split(":")[0])
+        if event_hour > current_hour:
+            next_event = {**event, "countdown": f"{event_hour - current_hour}h"}
+            break
+    
+    return {
+        "analyses": analyses,
+        "vix": vix_data,
+        "regime": vix_data.get("regime", "neutral"),
+        "next_event": next_event,
+        "timestamp": now.isoformat(),
+        "last_update": now.strftime("%H:%M")
+    }
+
+# ==================== COT (Commitment of Traders) ====================
+
+class COTData(BaseModel):
+    symbol: str
+    report_type: str  # TFF or Disaggregated
+    as_of_date: str
+    release_date: str
+    categories: Dict[str, Any]
+    bias: str  # Bull/Bear/Neutral
+    confidence: int
+    crowding: int
+    squeeze_risk: int
+    driver_text: str
+
+# Simulated COT data (in production, fetch from CFTC)
+def generate_cot_data(symbol: str):
+    """Generate simulated COT data based on symbol type"""
+    now = datetime.now(timezone.utc)
+    # COT is "as of Tuesday", released Friday
+    as_of = now - timedelta(days=(now.weekday() - 1) % 7)
+    release = as_of + timedelta(days=3)
+    
+    if symbol in ["NAS100", "SP500", "EURUSD"]:
+        # TFF Report
+        report_type = "TFF"
+        
+        # Generate category data
+        asset_manager_net = random.randint(-50000, 80000)
+        leveraged_net = random.randint(-40000, 40000)
+        dealer_net = random.randint(-30000, 30000)
+        other_net = random.randint(-20000, 20000)
+        
+        # Calculate percentiles (simulated)
+        am_percentile = random.randint(10, 90)
+        lev_percentile = random.randint(10, 90)
+        
+        categories = {
+            "asset_manager": {
+                "name": "Asset Manager/Institutional",
+                "long": max(0, asset_manager_net + random.randint(10000, 30000)),
+                "short": max(0, -asset_manager_net + random.randint(5000, 20000)) if asset_manager_net < 0 else random.randint(5000, 20000),
+                "net": asset_manager_net,
+                "net_change": random.randint(-5000, 5000),
+                "percentile_52w": am_percentile
+            },
+            "leveraged": {
+                "name": "Leveraged Funds",
+                "long": max(0, leveraged_net + random.randint(5000, 20000)),
+                "short": max(0, -leveraged_net + random.randint(5000, 15000)) if leveraged_net < 0 else random.randint(5000, 15000),
+                "net": leveraged_net,
+                "net_change": random.randint(-3000, 3000),
+                "percentile_52w": lev_percentile
+            },
+            "dealer": {
+                "name": "Dealer/Intermediary",
+                "long": max(0, dealer_net + random.randint(10000, 25000)),
+                "short": max(0, -dealer_net + random.randint(10000, 25000)) if dealer_net < 0 else random.randint(10000, 25000),
+                "net": dealer_net,
+                "net_change": random.randint(-2000, 2000),
+                "percentile_52w": random.randint(20, 80)
+            },
+            "other": {
+                "name": "Other Reportables",
+                "net": other_net,
+                "net_change": random.randint(-1000, 1000),
+                "percentile_52w": random.randint(20, 80)
+            }
+        }
+        
+        # Bias based on Asset Manager
+        if am_percentile > 70:
+            bias = "Bull"
+            driver_text = f"Asset Manager netti long al {am_percentile}° percentile 52w. Istituzionali accumulano."
+        elif am_percentile < 30:
+            bias = "Bear"
+            driver_text = f"Asset Manager netti short/ridotti al {am_percentile}° percentile. Istituzionali scaricano."
+        else:
+            bias = "Neutral"
+            driver_text = f"Asset Manager in zona neutra ({am_percentile}° percentile). Nessun bias forte."
+        
+        # Crowding from Leveraged
+        crowding = min(100, max(0, abs(lev_percentile - 50) * 2))
+        
+        # Squeeze risk
+        squeeze_risk = 0
+        if lev_percentile > 85 or lev_percentile < 15:
+            squeeze_risk = 75 + random.randint(0, 20)
+            driver_text += f" Attenzione: Leveraged Funds al {lev_percentile}° percentile, rischio squeeze elevato."
+        elif lev_percentile > 70 or lev_percentile < 30:
+            squeeze_risk = 40 + random.randint(0, 20)
+        else:
+            squeeze_risk = random.randint(10, 30)
+        
+        confidence = min(90, 50 + abs(am_percentile - 50))
+        
+    else:  # XAU - Disaggregated
+        report_type = "Disaggregated"
+        
+        managed_money_net = random.randint(-20000, 60000)
+        swap_dealer_net = random.randint(-30000, 30000)
+        producer_net = random.randint(-50000, -10000)  # Usually net short
+        
+        mm_percentile = random.randint(15, 85)
+        
+        categories = {
+            "managed_money": {
+                "name": "Managed Money",
+                "long": max(0, managed_money_net + random.randint(20000, 50000)),
+                "short": random.randint(10000, 30000),
+                "net": managed_money_net,
+                "net_change": random.randint(-4000, 4000),
+                "percentile_52w": mm_percentile,
+                "spreading": random.randint(5000, 15000)
+            },
+            "swap_dealers": {
+                "name": "Swap Dealers",
+                "long": max(0, swap_dealer_net + random.randint(15000, 35000)),
+                "short": max(0, -swap_dealer_net + random.randint(15000, 35000)),
+                "net": swap_dealer_net,
+                "net_change": random.randint(-2000, 2000),
+                "percentile_52w": random.randint(25, 75)
+            },
+            "producer": {
+                "name": "Producer/Merchant",
+                "long": random.randint(5000, 15000),
+                "short": abs(producer_net) + random.randint(5000, 15000),
+                "net": producer_net,
+                "net_change": random.randint(-1500, 1500),
+                "percentile_52w": random.randint(30, 70)
+            }
+        }
+        
+        # Bias based on Managed Money
+        if mm_percentile > 70:
+            bias = "Bull"
+            driver_text = f"Managed Money netti long al {mm_percentile}° percentile. Speculatori bullish su Gold."
+        elif mm_percentile < 30:
+            bias = "Bear"
+            driver_text = f"Managed Money ridotti al {mm_percentile}° percentile. Interesse speculativo in calo."
+        else:
+            bias = "Neutral"
+            driver_text = f"Managed Money in zona neutra ({mm_percentile}° percentile)."
+        
+        crowding = min(100, max(0, abs(mm_percentile - 50) * 2))
+        
+        if mm_percentile > 80 or mm_percentile < 20:
+            squeeze_risk = 70 + random.randint(0, 25)
+            driver_text += f" Overcrowding rilevato, rischio reversal."
+        else:
+            squeeze_risk = random.randint(15, 40)
+        
+        confidence = min(85, 45 + abs(mm_percentile - 50))
+    
+    return {
+        "symbol": symbol,
+        "report_type": report_type,
+        "as_of_date": as_of.strftime("%Y-%m-%d"),
+        "release_date": release.strftime("%Y-%m-%d"),
+        "release_time_et": "15:30 ET",
+        "release_time_cet": "21:30 CET",
+        "categories": categories,
+        "bias": bias,
+        "confidence": confidence,
+        "crowding": crowding,
+        "squeeze_risk": squeeze_risk,
+        "driver_text": driver_text,
+        "open_interest": random.randint(200000, 500000),
+        "oi_change": random.randint(-5000, 5000)
+    }
+
+@api_router.get("/cot/data")
+async def get_cot_data():
+    """Get COT data for all tracked assets"""
+    now = datetime.now(timezone.utc)
+    
+    # Calculate next release
+    days_to_friday = (4 - now.weekday()) % 7
+    if days_to_friday == 0 and now.hour >= 20:  # After 15:30 ET (20:30 UTC)
+        days_to_friday = 7
+    next_release = now + timedelta(days=days_to_friday)
+    next_release = next_release.replace(hour=20, minute=30, second=0, microsecond=0)
+    
+    countdown_hours = int((next_release - now).total_seconds() / 3600)
+    countdown_days = countdown_hours // 24
+    countdown_hours_remaining = countdown_hours % 24
+    
+    cot_data = {}
+    for symbol in ["NAS100", "SP500", "XAUUSD", "EURUSD"]:
+        cot_data[symbol] = generate_cot_data(symbol)
+    
+    return {
+        "data": cot_data,
+        "next_release": {
+            "date": next_release.strftime("%Y-%m-%d"),
+            "time_et": "15:30 ET",
+            "time_cet": "21:30 CET",
+            "countdown": f"{countdown_days}g {countdown_hours_remaining}h" if countdown_days > 0 else f"{countdown_hours}h"
+        },
+        "last_update": now.strftime("%H:%M"),
+        "timestamp": now.isoformat()
+    }
+
+@api_router.get("/cot/{symbol}")
+async def get_cot_symbol(symbol: str):
+    """Get COT data for a specific symbol"""
+    symbol = symbol.upper()
+    if symbol not in ["NAS100", "SP500", "XAUUSD", "EURUSD"]:
+        raise HTTPException(status_code=400, detail="Symbol not supported for COT analysis")
+    
+    return generate_cot_data(symbol)
+
 # ==================== RISK ANALYSIS ====================
 
 class RiskAnalysisResponse(BaseModel):
