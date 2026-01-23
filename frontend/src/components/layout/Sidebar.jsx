@@ -1,6 +1,5 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -19,19 +18,20 @@ import {
   Sun,
   X,
   TrendingUp,
-  Calendar,
-  FileText,
-  Globe,
-  Calculator
+  Newspaper,
+  AlertTriangle,
+  BarChart3,
+  Dices
 } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
-  { path: '/statistics', icon: FileText, label: 'Report' },
-  { path: '/charts', icon: LineChart, label: 'Grafici' },
-  { path: '/news', icon: Calendar, label: 'News' },
+  { path: '/report', icon: BarChart3, label: 'Report' },
+  { path: '/news', icon: Newspaper, label: 'News' },
+  { path: '/risk', icon: AlertTriangle, label: 'Risk' },
+  { path: '/statistics', icon: LineChart, label: 'Statistiche' },
+  { path: '/montecarlo', icon: Dices, label: 'Monte Carlo' },
   { path: '/strategy', icon: Target, label: 'Strategia' },
-  { path: '/montecarlo', icon: Calculator, label: 'Risk' },
   { path: '/psychology', icon: Brain, label: 'Psicologia' },
   { path: '/journal', icon: BookOpen, label: 'Journal' },
   { path: '/community', icon: Users, label: 'Community' },
@@ -39,7 +39,6 @@ const navItems = [
 ];
 
 export const Sidebar = ({ isOpen, onClose }) => {
-  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
@@ -95,7 +94,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
                   "hover:bg-primary/10",
                   isActive && "bg-primary/20"
                 )}
-                data-testid={`nav-${item.label.toLowerCase()}`}
+                data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
               >
                 <Icon className={cn(
                   "w-7 h-7",
@@ -143,8 +142,12 @@ export const Sidebar = ({ isOpen, onClose }) => {
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 rounded-xl overflow-hidden">
+              <img 
+                src="https://customer-assets.emergentagent.com/job_38b9976a-3c50-4a7a-8095-13c48833e390/artifacts/czwo9e5l_K%20%28Logo%29%20copia.png" 
+                alt="Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <span className="font-bold text-lg tracking-tight">Trading Hub</span>
           </div>
