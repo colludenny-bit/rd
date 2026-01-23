@@ -8,6 +8,7 @@ Karion è un dashboard di trading AI-powered che fornisce analisi multi-sorgente
 ### 1. UI/UX
 - ✅ Theme dark minimalista nero/verde con gradiente primary
 - ✅ Branding "KARION" in tutto il sito (login, header, sidebar)
+- ✅ **NEW** Logo SVG "KARION" nel header con sfumatura oro/grigio e ombra grigio fumé
 - ✅ Sidebar di navigazione con tutte le pagine
 - ✅ Tab fisse che non si espandono con i prezzi
 - ✅ Responsive design per desktop e mobile
@@ -65,7 +66,21 @@ Karion è un dashboard di trading AI-powered che fornisce analisi multi-sorgente
 - ✅ Upload PDF MT5
 - ✅ Analisi AI dei report
 
-#### Psychology & Journal
+#### Psychology EOD (Shark Mind Engine) - UPDATED 2026-01-23
+- ✅ **NEW** Shark Mind Engine - Sistema di progressione psicologica
+- ✅ Form EOD con metriche psico-fisiche (Stress, Focus, Energia, Tensione Fisica)
+- ✅ Urge to Trade tracking (0-10)
+- ✅ Comportamenti: Shutdown Ritual, Limiti, Pause, Reset Mindful
+- ✅ Trigger Attivi: FOMO, REVENGE, CHASING, BOREDOM, OVERCONFIDENCE, FEAR, AVOIDANCE
+- ✅ Scoring System: Shark Score, Discipline, Clarity, Emotional Stability, Compulsion Risk
+- ✅ Pattern Detection: Tilt Risk, Overtrading, FOMO Loop, Self Deception, Avoidance
+- ✅ Tomorrow Protocol con Micro-Rules IF/THEN
+- ✅ Guardrails: TILT_LOCK, OVERTRADING_LOCK, A_PLUS_ONLY, NORMAL modes
+- ✅ Progression Engine: ACQUISITION → MAINTENANCE → MAINTENANCE_PLUS
+- ✅ Grace Tokens per fase permissiva
+- ✅ Readiness tracking per promozione automatica
+
+#### Journal
 - ✅ Check-in giornaliero
 - ✅ Tracking confidence/stress/sleep
 - ✅ Journal entries
