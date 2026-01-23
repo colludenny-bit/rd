@@ -72,12 +72,13 @@ export const Sidebar = ({ isOpen, onClose }) => {
         data-testid="sidebar-desktop"
       >
         {/* Logo */}
-        <div className="mb-3 relative z-10">
-          <div className="w-16 h-16 flex items-center justify-center">
+        <div className="mb-3 relative z-10 overflow-visible">
+          <div className="w-20 h-20 flex items-center justify-center" style={{ marginLeft: '4px' }}>
             <img 
               src="https://customer-assets.emergentagent.com/job_38b9976a-3c50-4a7a-8095-13c48833e390/artifacts/czwo9e5l_K%20%28Logo%29%20copia.png" 
               alt="Logo"
-              className="w-14 h-14 object-contain"
+              className="w-20 h-20 object-contain"
+              style={{ transform: 'translateX(6px)' }}
             />
           </div>
         </div>
