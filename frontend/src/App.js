@@ -90,6 +90,7 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
         <Route path="strategy" element={<StrategyPage />} />
         <Route path="charts" element={<ChartsPage />} />
+        <Route path="news" element={<NewsPage />} />
         <Route path="psychology" element={<PsychologyPage />} />
         <Route path="journal" element={<JournalPage />} />
         <Route path="community" element={<CommunityPage />} />
