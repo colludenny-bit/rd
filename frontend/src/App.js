@@ -105,6 +105,7 @@ function AppRoutes() {
         <Route path="options" element={<OptionsFlowPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
         <Route path="montecarlo" element={<MonteCarloPage />} />
+        <Route path="calculator" element={<CalculatorPage />} />
         <Route path="crypto" element={<CryptoPage />} />
         <Route path="psychology" element={<PsychologyPage />} />
         <Route path="journal" element={<JournalPage />} />
