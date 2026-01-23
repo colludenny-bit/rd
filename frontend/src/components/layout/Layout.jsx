@@ -28,7 +28,7 @@ export const Layout = () => {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <span className="font-bold text-lg">Trading Hub</span>
+            <span className="font-bold text-xl tracking-wide text-gradient">Karion</span>
             <div className="w-10" /> {/* Spacer for centering */}
           </div>
         </header>

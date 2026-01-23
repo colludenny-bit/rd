@@ -29,12 +29,13 @@ const navItems = [
   { path: '/report', icon: BarChart3, label: 'Report' },
   { path: '/news', icon: Newspaper, label: 'News' },
   { path: '/risk', icon: AlertTriangle, label: 'Risk' },
+  { path: '/cot', icon: TrendingUp, label: 'COT' },
   { path: '/statistics', icon: LineChart, label: 'Statistiche' },
   { path: '/strategy', icon: Target, label: 'Strategia' },
   { path: '/montecarlo', icon: Dices, label: 'Monte Carlo' },
   { path: '/journal', icon: BookOpen, label: 'Journal' },
   { path: '/psychology', icon: Brain, label: 'Psicologia' },
-  { path: '/ai', icon: Sparkles, label: 'AI' },
+  { path: '/ai', icon: Sparkles, label: 'Karion AI' },
   { path: '/community', icon: Users, label: 'Community' },
 ];
 
@@ -149,7 +150,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
                 className="w-full h-full object-contain"
               />
             </div>
-            <span className="font-bold text-lg tracking-tight">Trading Hub</span>
+            <span className="font-bold text-lg tracking-tight">Karion</span>
           </div>
           <button
             onClick={onClose}
