@@ -30,6 +30,7 @@ import COTPage from './components/pages/COTPage';
 import OptionsFlowPage from './components/pages/OptionsFlowPage';
 import MacroEconomyPage from './components/pages/MacroEconomyPage';
 import CryptoPage from './components/pages/CryptoPage';
+import CalculatorPage from './components/pages/CalculatorPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
