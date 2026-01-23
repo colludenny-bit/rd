@@ -542,10 +542,15 @@ async def monte_carlo_simulation(params: MonteCarloParams, current_user: dict = 
     results = []
     bankruptcies = 0
     final_capitals = []
+    max_drawdowns = []
     
-    for _ in range(1000):  # Run 1000 simulations
+    num_simulations = 10000  # Run 10000 simulations
+    
+    for _ in range(num_simulations):
         capital = params.initial_capital
         equity_curve = [capital]
+        peak = capital
+        max_dd = 0
         
         for _ in range(params.num_trades):
             risk_amount = capital * params.risk_per_trade
@@ -556,25 +561,49 @@ async def monte_carlo_simulation(params: MonteCarloParams, current_user: dict = 
             
             equity_curve.append(capital)
             
+            # Track drawdown
+            if capital > peak:
+                peak = capital
+            dd = ((peak - capital) / peak * 100) if peak > 0 else 0
+            if dd > max_dd:
+                max_dd = dd
+            
             if capital <= 0:
                 bankruptcies += 1
                 break
         
         final_capitals.append(capital)
+        max_drawdowns.append(max_dd)
         if len(results) < 100:  # Store first 100 curves for visualization
             results.append(equity_curve)
     
+    # Sort final capitals for percentile calculation
+    sorted_capitals = sorted(final_capitals)
+    
     avg_final = sum(final_capitals) / len(final_capitals)
+    median_final = sorted_capitals[len(sorted_capitals) // 2]
     max_final = max(final_capitals)
     min_final = min(final_capitals)
-    bankruptcy_rate = (bankruptcies / 1000) * 100
+    bankruptcy_rate = (bankruptcies / num_simulations) * 100
+    avg_max_dd = sum(max_drawdowns) / len(max_drawdowns)
+    worst_dd = max(max_drawdowns)
+    
+    # Calculate percentiles
+    p10_final = sorted_capitals[int(len(sorted_capitals) * 0.1)]
+    p90_final = sorted_capitals[int(len(sorted_capitals) * 0.9)]
     
     return {
-        "equity_curves": results[:20],  # Send only 20 for visualization
+        "equity_curves": results[:50],  # Send 50 for visualization
         "avg_final_capital": round(avg_final, 2),
+        "median_final_capital": round(median_final, 2),
         "max_final_capital": round(max_final, 2),
         "min_final_capital": round(min_final, 2),
+        "p10_final_capital": round(p10_final, 2),
+        "p90_final_capital": round(p90_final, 2),
         "bankruptcy_rate": round(bankruptcy_rate, 2),
+        "avg_max_drawdown": round(avg_max_dd, 2),
+        "worst_drawdown": round(worst_dd, 2),
+        "num_simulations": num_simulations,
         "params": params.model_dump()
     }
 
