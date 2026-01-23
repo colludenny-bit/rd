@@ -400,6 +400,49 @@ export default function DashboardPage() {
         </div>
       </section>
 
+      {/* Crypto Quick Overview */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold flex items-center gap-2">
+            <span className="text-yellow-500">₿</span>
+            Crypto Overview
+          </h2>
+          <Link to="/crypto" className="text-sm text-primary hover:underline flex items-center gap-1">
+            Vedi tutto <ChevronRight className="w-4 h-4" />
+          </Link>
+        </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { symbol: 'BTC', price: 105420, change: 2.5, color: 'yellow' },
+            { symbol: 'ETH', price: 3890, change: 3.2, color: 'purple' },
+            { symbol: 'SOL', price: 218, change: -1.2, color: 'primary' },
+            { symbol: 'XRP', price: 2.45, change: 5.8, color: 'blue' }
+          ].map((crypto) => (
+            <Card 
+              key={crypto.symbol}
+              className={cn(
+                "cursor-pointer hover:scale-[1.02] transition-all",
+                crypto.change > 0 ? "bg-primary/5 border-primary/30" : "bg-red-500/5 border-red-500/30"
+              )}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold">{crypto.symbol}</span>
+                  <span className={cn(
+                    "text-xs font-bold",
+                    crypto.change > 0 ? "text-primary" : "text-red-400"
+                  )}>
+                    {crypto.change > 0 ? '+' : ''}{crypto.change}%
+                  </span>
+                </div>
+                <p className="text-xl font-bold font-mono">${crypto.price.toLocaleString()}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
       {/* Quick Access Cards */}
       <section>
         <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
