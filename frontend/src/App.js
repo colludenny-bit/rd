@@ -23,6 +23,7 @@ import MonteCarloPage from './components/pages/MonteCarloPage';
 import StatisticsPage from './components/pages/StatisticsPage';
 import AscensionPage from './components/pages/AscensionPage';
 import SettingsPage from './components/pages/SettingsPage';
+import NewsPage from './components/pages/NewsPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
