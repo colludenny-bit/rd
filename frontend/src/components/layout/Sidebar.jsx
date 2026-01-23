@@ -32,10 +32,10 @@ const navItems = [
   { path: '/statistics', icon: LineChart, label: 'Statistiche' },
   { path: '/strategy', icon: Target, label: 'Strategia' },
   { path: '/montecarlo', icon: Dices, label: 'Monte Carlo' },
-  { path: '/psychology', icon: Brain, label: 'Psicologia' },
   { path: '/journal', icon: BookOpen, label: 'Journal' },
-  { path: '/community', icon: Users, label: 'Community' },
+  { path: '/psychology', icon: Brain, label: 'Psicologia' },
   { path: '/ai', icon: Sparkles, label: 'AI' },
+  { path: '/community', icon: Users, label: 'Community' },
 ];
 
 export const Sidebar = ({ isOpen, onClose }) => {
