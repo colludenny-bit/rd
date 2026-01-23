@@ -1,22 +1,45 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Newspaper, BarChart3 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Newspaper, ChevronDown, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
+
+const countries = [
+  { code: 'us', name: 'Stati Uniti', flag: '🇺🇸' },
+  { code: 'eu', name: 'Europa', flag: '🇪🇺' },
+  { code: 'gb', name: 'Regno Unito', flag: '🇬🇧' },
+  { code: 'jp', name: 'Giappone', flag: '🇯🇵' },
+  { code: 'cn', name: 'Cina', flag: '🇨🇳' },
+  { code: 'de', name: 'Germania', flag: '🇩🇪' },
+  { code: 'fr', name: 'Francia', flag: '🇫🇷' },
+  { code: 'it', name: 'Italia', flag: '🇮🇹' },
+  { code: 'au', name: 'Australia', flag: '🇦🇺' },
+  { code: 'ca', name: 'Canada', flag: '🇨🇦' },
+  { code: 'ch', name: 'Svizzera', flag: '🇨🇭' },
+  { code: 'nz', name: 'Nuova Zelanda', flag: '🇳🇿' },
+  { code: 'in', name: 'India', flag: '🇮🇳' },
+  { code: 'br', name: 'Brasile', flag: '🇧🇷' },
+  { code: 'mx', name: 'Messico', flag: '🇲🇽' },
+  { code: 'kr', name: 'Corea del Sud', flag: '🇰🇷' },
+  { code: 'sg', name: 'Singapore', flag: '🇸🇬' },
+  { code: 'hk', name: 'Hong Kong', flag: '🇭🇰' },
+];
 
 export default function NewsPage() {
   const calendarRef = useRef(null);
-  const [importanceLevel, setImportanceLevel] = useState(3); // 1, 2, or 3 lines
+  const [importanceLevel, setImportanceLevel] = useState(3);
+  const [selectedCountries, setSelectedCountries] = useState(countries.map(c => c.code));
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
 
-  const loadWidget = (importance) => {
+  const loadWidget = () => {
     if (calendarRef.current) {
       calendarRef.current.innerHTML = '';
       
       // Set importance filter based on level
       let importanceFilter;
-      if (importance === 1) {
-        importanceFilter = "-1"; // Only low importance
-      } else if (importance === 2) {
-        importanceFilter = "-1,0"; // Low and medium
+      if (importanceLevel === 1) {
+        importanceFilter = "1"; // Only high importance
+      } else if (importanceLevel === 2) {
+        importanceFilter = "0,1"; // Medium and high
       } else {
         importanceFilter = "-1,0,1"; // All importance levels
       }
@@ -47,7 +70,7 @@ export default function NewsPage() {
         "height": "100%",
         "locale": "it",
         "importanceFilter": importanceFilter,
-        "countryFilter": "us,eu,gb,jp,cn,de,fr,it,au,ca,ch,nz,br,mx,kr,in,ru,za,se,no,pl,tr,sg,hk"
+        "countryFilter": selectedCountries.join(',')
       });
       
       widgetContainer.appendChild(script);
@@ -55,14 +78,14 @@ export default function NewsPage() {
   };
 
   useEffect(() => {
-    loadWidget(importanceLevel);
+    loadWidget();
     
     return () => {
       if (calendarRef.current) {
         calendarRef.current.innerHTML = '';
       }
     };
-  }, [importanceLevel]);
+  }, [importanceLevel, selectedCountries]);
 
   const cycleImportance = () => {
     setImportanceLevel(prev => {
@@ -72,8 +95,22 @@ export default function NewsPage() {
     });
   };
 
+  const toggleCountry = (code) => {
+    setSelectedCountries(prev => {
+      if (prev.includes(code)) {
+        if (prev.length === 1) return prev; // Keep at least one
+        return prev.filter(c => c !== code);
+      }
+      return [...prev, code];
+    });
+  };
+
+  const selectAllCountries = () => {
+    setSelectedCountries(countries.map(c => c.code));
+  };
+
   const getImportanceLabel = () => {
-    if (importanceLevel === 1) return "Bassa";
+    if (importanceLevel === 1) return "Alta";
     if (importanceLevel === 2) return "Media";
     return "Tutte";
   };
@@ -90,32 +127,100 @@ export default function NewsPage() {
             <Newspaper className="w-8 h-8 text-primary" />
             Economic Calendar & News
           </h1>
-          <p className="text-muted-foreground mt-1">News e eventi economici in tempo reale da TradingView</p>
+          <p className="text-muted-foreground mt-1">News e eventi economici in tempo reale</p>
         </div>
         
-        {/* Importance Filter Button */}
-        <button
-          onClick={cycleImportance}
-          className="flex items-center gap-3 px-4 py-2 rounded-xl bg-card border border-border hover:border-primary/50 transition-all"
-          data-testid="importance-filter"
-        >
-          <div className="flex items-center gap-1">
-            {[1, 2, 3].map((level) => (
-              <div
-                key={level}
-                className={cn(
-                  "w-1 rounded-full transition-all",
-                  level <= importanceLevel ? "bg-primary" : "bg-muted",
-                  level === 1 ? "h-3" : level === 2 ? "h-4" : "h-5"
-                )}
-              />
-            ))}
+        {/* Filter Buttons */}
+        <div className="flex items-center gap-3">
+          {/* Country Filter Button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-card border border-border hover:border-primary/50 transition-all"
+              data-testid="country-filter"
+            >
+              <span className="text-lg">
+                {selectedCountries.length === countries.length ? '🌍' : countries.find(c => c.code === selectedCountries[0])?.flag}
+              </span>
+              <span className="text-sm font-medium">
+                {selectedCountries.length === countries.length 
+                  ? 'Tutti i Paesi' 
+                  : `${selectedCountries.length} Paesi`}
+              </span>
+              <ChevronDown className={cn(
+                "w-4 h-4 transition-transform",
+                showCountryDropdown && "rotate-180"
+              )} />
+            </button>
+
+            {/* Country Dropdown */}
+            <AnimatePresence>
+              {showCountryDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="absolute right-0 top-full mt-2 w-64 max-h-80 overflow-y-auto bg-card border border-border rounded-xl shadow-xl z-50 scrollbar-thin"
+                >
+                  {/* Select All */}
+                  <button
+                    onClick={selectAllCountries}
+                    className="w-full px-4 py-2 text-left text-sm font-medium text-primary hover:bg-secondary/50 border-b border-border"
+                  >
+                    Seleziona Tutti
+                  </button>
+                  
+                  {/* Country List */}
+                  {countries.map(country => (
+                    <button
+                      key={country.code}
+                      onClick={() => toggleCountry(country.code)}
+                      className="w-full px-4 py-2 flex items-center gap-3 hover:bg-secondary/50 transition-colors"
+                    >
+                      <span className="text-lg">{country.flag}</span>
+                      <span className="text-sm flex-1 text-left">{country.name}</span>
+                      {selectedCountries.includes(country.code) && (
+                        <Check className="w-4 h-4 text-primary" />
+                      )}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-          <span className="text-sm font-medium">
-            Importanza: {getImportanceLabel()}
-          </span>
-        </button>
+
+          {/* Importance Filter Button */}
+          <button
+            onClick={cycleImportance}
+            className="flex items-center gap-3 px-4 py-2 rounded-xl bg-card border border-border hover:border-primary/50 transition-all"
+            data-testid="importance-filter"
+          >
+            <div className="flex items-center gap-1">
+              {[1, 2, 3].map((level) => (
+                <div
+                  key={level}
+                  className={cn(
+                    "w-1 rounded-full transition-all",
+                    level <= importanceLevel ? "bg-primary" : "bg-muted",
+                    level === 1 ? "h-3" : level === 2 ? "h-4" : "h-5"
+                  )}
+                />
+              ))}
+            </div>
+            <span className="text-sm font-medium">
+              Importanza: {getImportanceLabel()}
+            </span>
+          </button>
+        </div>
       </motion.div>
+
+      {/* Click outside to close dropdown */}
+      {showCountryDropdown && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowCountryDropdown(false)}
+        />
+      )}
 
       {/* TradingView Economic Calendar - Full Height */}
       <div 
