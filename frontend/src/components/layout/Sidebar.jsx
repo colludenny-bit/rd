@@ -32,7 +32,7 @@ const navItems = [
   { path: '/', icon: Home, label: 'Home' },
   { path: '/statistics', icon: FileText, label: 'Report' },
   { path: '/charts', icon: LineChart, label: 'Grafici' },
-  { path: '/calendar', icon: Calendar, label: 'Calendario' },
+  { path: '/news', icon: Calendar, label: 'News' },
   { path: '/strategy', icon: Target, label: 'Strategia' },
   { path: '/montecarlo', icon: Calculator, label: 'Risk' },
   { path: '/psychology', icon: Brain, label: 'Psicologia' },
