@@ -24,7 +24,8 @@ import {
   Dices,
   Activity,
   Globe,
-  Bitcoin
+  Bitcoin,
+  Calculator
 } from 'lucide-react';
 
 const navItems = [
