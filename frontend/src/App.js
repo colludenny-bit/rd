@@ -98,10 +98,13 @@ function AppRoutes() {
         <Route path="strategy" element={<StrategyPage />} />
         <Route path="charts" element={<ChartsPage />} />
         <Route path="news" element={<NewsPage />} />
+        <Route path="macro" element={<MacroEconomyPage />} />
         <Route path="risk" element={<RiskPage />} />
         <Route path="cot" element={<COTPage />} />
+        <Route path="options" element={<OptionsFlowPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
         <Route path="montecarlo" element={<MonteCarloPage />} />
+        <Route path="crypto" element={<CryptoPage />} />
         <Route path="psychology" element={<PsychologyPage />} />
         <Route path="journal" element={<JournalPage />} />
         <Route path="community" element={<CommunityPage />} />
