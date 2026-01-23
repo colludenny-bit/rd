@@ -21,7 +21,7 @@ export const Layout = () => {
         {/* Desktop Header with Karion Title */}
         <header className="hidden lg:flex items-center justify-center py-4 border-b border-border/30">
           <h1 className="text-2xl font-bold tracking-widest">
-            <span className="text-gradient">KARION</span>
+            <span className="text-gold">KARION</span>
           </h1>
         </header>
 
@@ -36,7 +36,7 @@ export const Layout = () => {
               <Menu className="w-6 h-6" />
             </button>
             <h1 className="text-xl font-bold tracking-widest">
-              <span className="text-gradient">KARION</span>
+              <span className="text-gold">KARION</span>
             </h1>
             <div className="w-10" /> {/* Spacer for centering */}
           </div>
