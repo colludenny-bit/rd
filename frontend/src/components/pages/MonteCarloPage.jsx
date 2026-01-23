@@ -178,6 +178,7 @@ export default function MonteCarloPage() {
   const [loading, setLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [results, setResults] = useState(null);
+  const [importedStrategy, setImportedStrategy] = useState(null);
   const [params, setParams] = useState({
     win_rate: 55,
     avg_win: 2,
@@ -186,6 +187,27 @@ export default function MonteCarloPage() {
     initial_capital: 10000,
     risk_per_trade: 1
   });
+
+  // Load imported strategy from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('monteCarloStrategy');
+    if (stored) {
+      try {
+        const strategy = JSON.parse(stored);
+        setImportedStrategy(strategy);
+        setParams(prev => ({
+          ...prev,
+          win_rate: strategy.winRate,
+          avg_win: strategy.avgWin,
+          avg_loss: strategy.avgLoss
+        }));
+        // Clear after loading
+        localStorage.removeItem('monteCarloStrategy');
+      } catch (e) {
+        console.error('Error loading strategy:', e);
+      }
+    }
+  }, []);
 
   const runSimulation = async () => {
     setLoading(true);
