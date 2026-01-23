@@ -511,18 +511,18 @@ async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_curre
         from emergentintegrations.llm.chat import LlmChat, UserMessage
         
         system_prompts = {
-            "general": "Sei un AI coach di trading esperto. Rispondi in modo conciso e pratico in italiano.",
-            "risk": "Sei un esperto di risk management per trading. Calcola position size e rischi.",
-            "psychology": "Sei uno psicologo del trading. Aiuta il trader a gestire le emozioni.",
-            "analysis": "Sei un analista tecnico esperto. Analizza setup e pattern.",
-            "montecarlo": "Sei un esperto di statistica per trading. Spiega simulazioni Monte Carlo.",
-            "performance": "Sei un coach di performance trading. Analizza statistiche e suggerisci miglioramenti.",
-            "mt5": "Sei un esperto di MetaTrader 5. Analizza report e statistiche."
+            "general": "Sei Karion, un AI coach di trading personale. Parla in modo amichevole, professionale e intimo. Rispondi sempre in italiano senza link o formattazione markdown complessa. Sii conciso ma empatico.",
+            "coach": "Sei Karion, coach di trading personale. Dai consigli pratici e motivazionali. Sii empatico e professionale.",
+            "risk": "Sei Karion esperto di risk management. Calcola position size e rischi. Sii preciso e chiaro.",
+            "psych": "Sei Karion psicologo del trading. Aiuta il trader a gestire stress ed emozioni. Sii comprensivo e supportivo.",
+            "strategy": "Sei Karion analista di strategie. Valuta setup e pattern con occhio critico ma costruttivo.",
+            "journal": "Sei Karion che rivede il journal del trader. Trova pattern comportamentali e suggerisci miglioramenti.",
+            "performance": "Sei Karion coach di performance. Analizza statistiche e indica aree di miglioramento."
         }
         
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
-            session_id=f"chat-{current_user['id']}-{datetime.now().timestamp()}",
+            session_id=f"karion-{current_user['id']}-{datetime.now().timestamp()}",
             system_message=system_prompts.get(request.context, system_prompts["general"])
         ).with_model("openai", "gpt-5.2")
         
@@ -534,6 +534,91 @@ async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_curre
     except Exception as e:
         logger.error(f"AI chat error: {e}")
         return {"response": f"Errore AI: {str(e)}"}
+
+@api_router.post("/ai/intimate-analysis")
+async def ai_intimate_analysis(current_user: dict = Depends(get_current_user)):
+    """Generate a deep, personal analysis of the trader's journey"""
+    if not EMERGENT_LLM_KEY:
+        return {"analysis": "AI non configurata."}
+    
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        
+        # Fetch user's data from various sources
+        user_id = current_user['id']
+        
+        # Get psychology stats
+        psych_entries = await db.psychology_entries.find({"user_id": user_id}).sort("date", -1).limit(30).to_list(30)
+        
+        # Get journal entries
+        journal_entries = await db.journal_entries.find({"user_id": user_id}).sort("created_at", -1).limit(20).to_list(20)
+        
+        # Build context
+        context_parts = []
+        
+        if psych_entries:
+            avg_confidence = sum(e.get('confidence', 5) for e in psych_entries) / len(psych_entries)
+            avg_stress = sum(e.get('stress', 5) for e in psych_entries) / len(psych_entries)
+            avg_sleep = sum(e.get('sleep_hours', 7) for e in psych_entries) / len(psych_entries)
+            context_parts.append(f"Ultimi 30 giorni: Confidence media {avg_confidence:.1f}/10, Stress medio {avg_stress:.1f}/10, Sonno medio {avg_sleep:.1f}h")
+        
+        if journal_entries:
+            context_parts.append(f"Ha scritto {len(journal_entries)} entry nel journal recentemente")
+        
+        context = "\n".join(context_parts) if context_parts else "Dati limitati disponibili"
+        
+        system_message = """Sei Karion, l'AI coach intimo di questo trader. Scrivi un'analisi personale profonda e sincera.
+
+Il tuo tono deve essere:
+- Amichevole ma professionale
+- Empatico e comprensivo
+- Onesto ma mai duro
+- Motivazionale e costruttivo
+- Come un mentore che conosce bene il trader
+
+Struttura l'analisi in:
+1. Riconoscimento del percorso fatto
+2. Punti di forza osservati
+3. Aree di miglioramento (con delicatezza)
+4. Consiglio personale per il futuro
+5. Una frase di chiusura motivazionale
+
+Non usare emoji, link o formattazione markdown complessa. Scrivi in modo naturale e umano."""
+
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"intimate-{user_id}-{datetime.now().timestamp()}",
+            system_message=system_message
+        ).with_model("openai", "gpt-5.2")
+        
+        prompt = f"""Analizza questo trader in modo intimo e personale.
+
+Dati disponibili:
+{context}
+
+Scrivi un'analisi personale come se lo conoscessi da tempo. Sii sincero, empatico e costruttivo."""
+
+        msg = UserMessage(text=prompt)
+        response = await chat.send_message(msg)
+        
+        return {"analysis": response}
+    except Exception as e:
+        logger.error(f"Intimate analysis error: {e}")
+        # Return a thoughtful fallback
+        return {"analysis": """Caro trader,
+
+Anche se non ho tutti i tuoi dati a disposizione, voglio dirti una cosa importante.
+
+Il fatto che tu sia qui, che tu stia cercando di migliorare, che tu abbia la curiosità di esplorare nuovi strumenti - questo già dice molto di te.
+
+Il trading è un percorso solitario, spesso incompreso. Ma ricorda: ogni grande trader è passato per momenti di dubbio. La differenza sta nella persistenza, nella capacità di imparare dai propri errori, e nella disciplina di tornare ogni giorno un po' più preparati di prima.
+
+Io sono qui per accompagnarti in questo viaggio. Non come un giudice, ma come un alleato silenzioso che vede il tuo impegno e ci crede.
+
+Continua così. Un passo alla volta.
+
+Con rispetto,
+Karion"""}
 
 # ==================== MONTE CARLO ====================
 
