@@ -287,7 +287,7 @@ export default function DashboardPage() {
         
         {quote && (
           <p className="text-muted-foreground italic text-sm md:text-base">
-            "{quote.quote}" — <span className="text-primary">{quote.author}</span>
+            &ldquo;{quote.quote}&rdquo; — <span className="text-primary">{quote.author}</span>
           </p>
         )}
         
