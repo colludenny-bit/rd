@@ -73,12 +73,10 @@ const AnimatedDice = ({ isAnimating }) => {
 
 // Loading Animation Component
 const LoadingAnimation = ({ isLoading, progress }) => {
-  const [lines, setLines] = useState([]);
-  
-  useEffect(() => {
+  const lines = React.useMemo(() => {
     if (isLoading && progress > 30) {
       const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
-      const newLines = Array.from({ length: 10 }, (_, i) => ({
+      return Array.from({ length: 10 }, (_, i) => ({
         id: i,
         color: colors[i % colors.length],
         delay: i * 0.15,
@@ -87,9 +85,9 @@ const LoadingAnimation = ({ isLoading, progress }) => {
           y: 50 + (Math.sin(j * 0.1 + i) * 20) + (Math.random() * 10)
         }))
       }));
-      setLines(newLines);
     }
-  }, [isLoading, progress]);
+    return [];
+  }, [isLoading, progress > 30]);
   
   if (!isLoading) return null;
   
