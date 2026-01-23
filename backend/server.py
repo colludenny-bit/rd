@@ -778,6 +778,248 @@ async def get_market_prices():
     _market_cache["timestamp"] = now
     return prices
 
+# ==================== RISK ANALYSIS ====================
+
+class RiskAnalysisResponse(BaseModel):
+    risk_score: int
+    risk_category: str
+    vix: Dict[str, Any]
+    components: Dict[str, int]
+    reasons: List[Dict[str, Any]]
+    assets: Dict[str, Any]
+    expected_move: Dict[str, float]
+    next_event: Optional[Dict[str, Any]]
+    asset_tilts: Dict[str, Any]
+    last_update: str
+    timestamp: str
+
+# Simulated macro events (in production, fetch from economic calendar API)
+MACRO_EVENTS = [
+    {"time": "14:30", "event": "US Core CPI m/m", "impact": "high", "consensus": "0.3%", "previous": "0.3%"},
+    {"time": "15:00", "event": "ECB President Lagarde Speech", "impact": "medium", "consensus": "-", "previous": "-"},
+    {"time": "20:00", "event": "FOMC Member Speech", "impact": "high", "consensus": "-", "previous": "-"},
+    {"time": "22:00", "event": "US Crude Oil Inventories", "impact": "medium", "consensus": "-1.2M", "previous": "-2.5M"},
+]
+
+@api_router.get("/risk/analysis")
+async def get_risk_analysis():
+    """
+    Comprehensive risk analysis based on:
+    1. VIX Level (0-25 points)
+    2. VIX Momentum (0-25 points)
+    3. Event Risk - distance to high-impact events (0-25 points)
+    4. Market Stretch - distance to 2-week extremes (0-25 points)
+    
+    Total Risk Score: 0-100
+    Categories: SAFE (0-33), MEDIUM (34-66), HIGH (67-100)
+    """
+    now = datetime.now(timezone.utc)
+    
+    # 1. Get VIX data
+    vix_data = await get_vix_data()
+    vix_current = vix_data.get("current", 18)
+    vix_change = vix_data.get("change", 0)
+    
+    # 2. Get market prices
+    prices = await get_market_prices()
+    
+    # 3. Calculate Component 1: VIX Level (0-25)
+    if vix_current >= 30:
+        comp1 = 25
+    elif vix_current >= 25:
+        comp1 = 22
+    elif vix_current >= 22:
+        comp1 = 18
+    elif vix_current >= 18:
+        comp1 = 12
+    elif vix_current >= 14:
+        comp1 = 6
+    else:
+        comp1 = 3
+    
+    # 4. Calculate Component 2: VIX Momentum (0-25)
+    if vix_change > 10:
+        comp2 = 25
+    elif vix_change > 6:
+        comp2 = 22
+    elif vix_change > 3:
+        comp2 = 16
+    elif vix_change >= -3:
+        comp2 = 8
+    elif vix_change >= -6:
+        comp2 = 4
+    else:
+        comp2 = 2
+    
+    # 5. Calculate Component 3: Event Risk (0-25)
+    # Simulate hours to next high-impact event
+    current_hour = now.hour
+    hours_to_event = 24  # Default: no imminent event
+    next_event = None
+    
+    for event in MACRO_EVENTS:
+        event_hour = int(event["time"].split(":")[0])
+        if event["impact"] == "high" and event_hour > current_hour:
+            hours_to_event = event_hour - current_hour
+            next_event = {**event, "hours_away": hours_to_event}
+            break
+    
+    if hours_to_event <= 1:
+        comp3 = 25
+    elif hours_to_event <= 2:
+        comp3 = 22
+    elif hours_to_event <= 4:
+        comp3 = 16
+    elif hours_to_event <= 8:
+        comp3 = 10
+    elif hours_to_event <= 12:
+        comp3 = 6
+    else:
+        comp3 = 3
+    
+    # 6. Calculate Component 4: Market Stretch (0-25)
+    # Calculate distance to 2-week extremes for each asset
+    assets_analysis = {}
+    min_distance = 100
+    
+    for symbol, data in prices.items():
+        if symbol in ["XAUUSD", "NAS100", "SP500", "EURUSD"]:
+            price = data.get("price", 0)
+            weekly_high = data.get("weekly_high", price * 1.02)
+            weekly_low = data.get("weekly_low", price * 0.98)
+            
+            # Simulate 2-week range (slightly wider than weekly)
+            two_week_high = weekly_high * 1.005
+            two_week_low = weekly_low * 0.995
+            
+            dist_to_high = abs((two_week_high - price) / two_week_high * 100)
+            dist_to_low = abs((price - two_week_low) / two_week_low * 100)
+            nearest_extreme = "high" if dist_to_high < dist_to_low else "low"
+            distance_to_extreme = min(dist_to_high, dist_to_low)
+            
+            if distance_to_extreme < min_distance:
+                min_distance = distance_to_extreme
+            
+            assets_analysis[symbol] = {
+                "current": price,
+                "weekly_high": weekly_high,
+                "weekly_low": weekly_low,
+                "two_week_high": round(two_week_high, 2 if symbol != "EURUSD" else 5),
+                "two_week_low": round(two_week_low, 2 if symbol != "EURUSD" else 5),
+                "nearest_extreme": nearest_extreme,
+                "distance_to_extreme": round(distance_to_extreme, 2),
+                "change": data.get("change", 0)
+            }
+    
+    if min_distance <= 0.25:
+        comp4 = 25
+    elif min_distance <= 0.5:
+        comp4 = 20
+    elif min_distance <= 0.75:
+        comp4 = 15
+    elif min_distance <= 1.0:
+        comp4 = 10
+    elif min_distance <= 1.5:
+        comp4 = 6
+    else:
+        comp4 = 3
+    
+    # 7. Calculate total Risk Score
+    risk_score = comp1 + comp2 + comp3 + comp4
+    
+    # 8. Determine category
+    if risk_score >= 67:
+        risk_category = "HIGH"
+    elif risk_score >= 34:
+        risk_category = "MEDIUM"
+    else:
+        risk_category = "SAFE"
+    
+    # 9. Determine main reasons
+    components_ranked = sorted([
+        {"name": "VIX Level", "value": comp1, "desc": f"VIX a {vix_current}"},
+        {"name": "VIX Momentum", "value": comp2, "desc": f"VIX {'+' if vix_change > 0 else ''}{vix_change:.1f}%"},
+        {"name": "Event Risk", "value": comp3, "desc": f"Evento high-impact tra {hours_to_event}h" if hours_to_event <= 12 else "No eventi imminenti"},
+        {"name": "Market Stretch", "value": comp4, "desc": f"Asset a {min_distance:.2f}% da estremo 2W"}
+    ], key=lambda x: x["value"], reverse=True)
+    
+    reasons = [components_ranked[0]]
+    if components_ranked[1]["value"] >= 12:
+        reasons.append(components_ranked[1])
+    
+    # 10. Calculate Expected Move (based on VIX)
+    sp500_price = prices.get("SP500", {}).get("price", 6000)
+    daily_vol = vix_current / (252 ** 0.5)
+    expected_move = {
+        "percent": round(daily_vol, 2),
+        "sp500_points": round(sp500_price * daily_vol / 100, 1)
+    }
+    
+    # 11. Calculate Asset Tilts based on VIX regime
+    asset_tilts = {}
+    vix_rising = vix_change > 2
+    
+    for symbol in ["NAS100", "SP500", "XAUUSD", "EURUSD"]:
+        if symbol in ["NAS100", "SP500"]:
+            if vix_rising:
+                asset_tilts[symbol] = {
+                    "tilt": "breakout-risk",
+                    "text": f"VIX in salita aumenta rischio flush/breakout. Ridurre aggressività contrarian.",
+                    "color": "red"
+                }
+            else:
+                asset_tilts[symbol] = {
+                    "tilt": "mean-reversion",
+                    "text": "VIX in calo favorisce rotazione verso centro intraday.",
+                    "color": "green"
+                }
+        elif symbol == "XAUUSD":
+            if vix_rising:
+                asset_tilts[symbol] = {
+                    "tilt": "safe-haven",
+                    "text": "Risk-off può sostenere Gold come bene rifugio.",
+                    "color": "yellow"
+                }
+            else:
+                asset_tilts[symbol] = {
+                    "tilt": "range",
+                    "text": "Contesto risk-on limita upside Gold. Range-bound più probabile.",
+                    "color": "green"
+                }
+        elif symbol == "EURUSD":
+            if vix_rising:
+                asset_tilts[symbol] = {
+                    "tilt": "bearish-bias",
+                    "text": "VIX in salita = stress. Long EURUSD più rischiosi, USD potrebbe rafforzarsi.",
+                    "color": "red"
+                }
+            else:
+                asset_tilts[symbol] = {
+                    "tilt": "bounce-possible",
+                    "text": "VIX in calo = risk-on. Rimbalzi EURUSD più plausibili.",
+                    "color": "green"
+                }
+    
+    return {
+        "risk_score": risk_score,
+        "risk_category": risk_category,
+        "vix": vix_data,
+        "components": {
+            "vix_level": comp1,
+            "vix_momentum": comp2,
+            "event_risk": comp3,
+            "market_stretch": comp4
+        },
+        "reasons": reasons,
+        "assets": assets_analysis,
+        "expected_move": expected_move,
+        "next_event": next_event,
+        "asset_tilts": asset_tilts,
+        "macro_events": MACRO_EVENTS,
+        "last_update": now.strftime("%H:%M"),
+        "timestamp": now.isoformat()
+    }
+
 # ==================== PHILOSOPHY ====================
 
 PHILOSOPHY_QUOTES = [
