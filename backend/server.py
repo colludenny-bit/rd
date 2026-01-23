@@ -336,6 +336,347 @@ async def get_psychology_stats(current_user: dict = Depends(get_current_user)):
         "trend": trend_data
     }
 
+# ==================== SHARK MIND ENGINE (Psychology EOD) ====================
+
+class EODPsychInput(BaseModel):
+    date: str
+    stress_1_10: int
+    focus_1_10: int
+    energy_1_10: int
+    physical_tension_1_10: int
+    urge_to_trade_0_10: int
+    dominant_state_one_word: str = ""
+    temptation_one_sentence: str = ""
+    behaviors: Dict[str, bool] = {}
+    triggers_selected: List[str] = []
+    free_note_optional: str = ""
+
+class JournalTelemetryInput(BaseModel):
+    session_type: str = "trade_day"
+    pnl: float = 0
+    trades_count: int = 0
+    planned_trades_count: int = 0
+    unplanned_trades_count: int = 0
+    rule_violations: List[Dict[str, Any]] = []
+    overtrading_detected: bool = False
+
+class EngineStateInput(BaseModel):
+    phase: str = "ACQUISITION"
+    level: int = 1
+    confidence_readiness: int = 0
+    grace_tokens: int = 3
+
+class SharkMindRequest(BaseModel):
+    eod_psych: EODPsychInput
+    journal_telemetry: Optional[JournalTelemetryInput] = None
+    engine_state: Optional[EngineStateInput] = None
+
+def calculate_shark_scores(eod: EODPsychInput, telemetry: Optional[JournalTelemetryInput], phase: str):
+    """Calculate Shark Mind Engine scores based on inputs"""
+    
+    # Feature extraction
+    emotional_load = (eod.stress_1_10 + eod.physical_tension_1_10) / 2 + eod.urge_to_trade_0_10 / 2
+    clarity_index = max(0, min(100, (eod.focus_1_10 - eod.stress_1_10 + 10) * 10))
+    stability_proxy = max(0, min(100, 100 - abs(eod.stress_1_10 - eod.focus_1_10) * 8))
+    
+    behaviors = eod.behaviors
+    limits_broken = not behaviors.get('limits_respected', True)
+    shutdown_missing = not behaviors.get('shutdown_ritual_done', False)
+    
+    # Calculate discipline score
+    discipline_base = 50
+    if behaviors.get('limits_respected', True):
+        discipline_base += 20
+    if behaviors.get('shutdown_ritual_done', False):
+        discipline_base += 15
+    if behaviors.get('breaks_taken', False):
+        discipline_base += 10
+    if limits_broken:
+        discipline_base -= 30
+    
+    # Adjust for telemetry
+    if telemetry:
+        if telemetry.unplanned_trades_count > 0:
+            discipline_base -= telemetry.unplanned_trades_count * 10
+        if telemetry.overtrading_detected:
+            discipline_base -= 20
+    
+    discipline_score = max(0, min(100, discipline_base))
+    
+    # Emotional stability
+    emotional_stability = max(0, min(100, 100 - emotional_load * 5))
+    
+    # Compulsion risk
+    compulsion_risk = 0
+    if eod.urge_to_trade_0_10 > 7:
+        compulsion_risk += 30
+    if 'FOMO' in eod.triggers_selected:
+        compulsion_risk += 20
+    if 'REVENGE' in eod.triggers_selected or 'CHASING' in eod.triggers_selected:
+        compulsion_risk += 25
+    if telemetry and telemetry.unplanned_trades_count > 0:
+        compulsion_risk += 15
+    compulsion_risk = min(100, compulsion_risk)
+    
+    # Phase-specific weighting for Shark Score
+    if phase == "ACQUISITION":
+        # Permissive: focus on habits
+        shark_score = int(
+            discipline_score * 0.35 +
+            clarity_index * 0.25 +
+            emotional_stability * 0.25 +
+            (100 - compulsion_risk) * 0.15
+        )
+    elif phase == "MAINTENANCE":
+        # Strict: focus on limits and control
+        shark_score = int(
+            discipline_score * 0.40 +
+            clarity_index * 0.20 +
+            emotional_stability * 0.20 +
+            (100 - compulsion_risk) * 0.20
+        )
+    else:  # MAINTENANCE_PLUS
+        # Killer mode: highest standards
+        shark_score = int(
+            discipline_score * 0.35 +
+            clarity_index * 0.25 +
+            emotional_stability * 0.25 +
+            (100 - compulsion_risk) * 0.15
+        )
+        # Additional penalty for any imperfection
+        if discipline_score < 80:
+            shark_score -= 10
+    
+    return {
+        "shark_score_0_100": max(0, min(100, shark_score)),
+        "discipline_0_100": int(discipline_score),
+        "clarity_0_100": int(clarity_index),
+        "emotional_stability_0_100": int(emotional_stability),
+        "compulsion_risk_0_100": int(compulsion_risk)
+    }
+
+def detect_patterns(eod: EODPsychInput, telemetry: Optional[JournalTelemetryInput]):
+    """Detect behavioral patterns from EOD data"""
+    patterns = []
+    
+    # Tilt Risk
+    if ('REVENGE' in eod.triggers_selected or 'CHASING' in eod.triggers_selected) and eod.stress_1_10 > 6:
+        patterns.append({
+            "pattern_id": "TILT_RISK",
+            "evidence": [f"eod:stress_{eod.stress_1_10}", f"triggers:{','.join(eod.triggers_selected)}"],
+            "severity": "high" if not eod.behaviors.get('limits_respected', True) else "medium",
+            "confidence_0_1": 0.85
+        })
+    
+    # Overtrading
+    if telemetry and (telemetry.overtrading_detected or telemetry.unplanned_trades_count > 1):
+        patterns.append({
+            "pattern_id": "OVERTRADING",
+            "evidence": [f"journal:unplanned_trades_{telemetry.unplanned_trades_count}"],
+            "severity": "high" if telemetry.unplanned_trades_count > 2 else "medium",
+            "confidence_0_1": 0.9
+        })
+    
+    # FOMO Loop
+    if 'FOMO' in eod.triggers_selected and eod.urge_to_trade_0_10 > 7:
+        patterns.append({
+            "pattern_id": "FOMO_LOOP",
+            "evidence": [f"eod:urge_{eod.urge_to_trade_0_10}", "trigger:FOMO"],
+            "severity": "medium",
+            "confidence_0_1": 0.75
+        })
+    
+    # Self Deception
+    if eod.stress_1_10 > 6 and not eod.behaviors.get('limits_respected', True) and eod.dominant_state_one_word.lower() in ['bene', 'ok', 'tranquillo', 'calm']:
+        patterns.append({
+            "pattern_id": "SELF_DECEPTION",
+            "evidence": [f"eod:stress_{eod.stress_1_10}", "behavior:limits_broken", f"state:{eod.dominant_state_one_word}"],
+            "severity": "high",
+            "confidence_0_1": 0.8
+        })
+    
+    # Avoidance
+    if 'AVOIDANCE' in eod.triggers_selected or 'FEAR' in eod.triggers_selected:
+        patterns.append({
+            "pattern_id": "AVOIDANCE",
+            "evidence": [f"triggers:{','.join(eod.triggers_selected)}"],
+            "severity": "low",
+            "confidence_0_1": 0.6
+        })
+    
+    return patterns
+
+def generate_tomorrow_protocol(scores: dict, patterns: list, eod: EODPsychInput, telemetry: Optional[JournalTelemetryInput]):
+    """Generate tomorrow's trading protocol based on analysis"""
+    
+    # Determine mode
+    mode = "NORMAL"
+    tilt_pattern = next((p for p in patterns if p["pattern_id"] == "TILT_RISK" and p["severity"] == "high"), None)
+    overtrading_pattern = next((p for p in patterns if p["pattern_id"] == "OVERTRADING"), None)
+    
+    if tilt_pattern:
+        mode = "TILT_LOCK"
+    elif overtrading_pattern or scores["compulsion_risk_0_100"] > 60:
+        mode = "OVERTRADING_LOCK"
+    elif scores["discipline_0_100"] < 60 or scores["clarity_0_100"] < 50:
+        mode = "A_PLUS_ONLY"
+    
+    # Generate micro rule
+    if mode == "TILT_LOCK":
+        micro_rule = "IF senti urgenza di 'recuperare' THEN chiudi la piattaforma e fai 10 respiri profondi. Nessun trade per 30 minuti."
+    elif mode == "OVERTRADING_LOCK":
+        micro_rule = "IF hai già fatto 2 trade THEN stop. Nessuna eccezione. Chiudi la piattaforma."
+    elif 'FOMO' in eod.triggers_selected:
+        micro_rule = "IF vedi un setup 'imperdibile' che non era nel piano THEN scrivi sul journal perché vuoi entrare. Aspetta 15 minuti. Se ancora lo vuoi, è un no."
+    elif eod.urge_to_trade_0_10 > 6:
+        micro_rule = "IF l'urge to trade supera 6 THEN fai una pausa di 10 minuti e rivedi il piano. Solo setup A+."
+    else:
+        micro_rule = "IF completi il pre-market routine THEN puoi tradare. Altrimenti, no trade."
+    
+    # Constraints
+    constraints = {
+        "max_trades": 2 if mode in ["TILT_LOCK", "OVERTRADING_LOCK"] else 5,
+        "timebox_minutes": 120 if mode == "TILT_LOCK" else 0,
+        "allowed_setups": ["A_PLUS_ONLY"] if mode != "NORMAL" else ["A+", "B+"]
+    }
+    
+    # Reset steps
+    reset_steps = []
+    if mode == "TILT_LOCK":
+        reset_steps = [
+            "Chiudi la piattaforma immediatamente dopo 1 loss",
+            "Fai 5 minuti di respirazione o camminata",
+            "Scrivi sul journal cosa è successo prima di rientrare"
+        ]
+    elif mode == "OVERTRADING_LOCK":
+        reset_steps = [
+            "Dopo ogni trade, pausa di 15 minuti",
+            "Rivedi il trade appena chiuso sul journal",
+            "Conferma che il prossimo trade è nel piano"
+        ]
+    else:
+        reset_steps = [
+            "Pre-market routine completata",
+            "Piano di trading definito",
+            "Livelli chiave identificati"
+        ]
+    
+    return {
+        "mode": mode,
+        "micro_rule_if_then": micro_rule,
+        "constraints": constraints,
+        "reset_steps": reset_steps
+    }
+
+@api_router.post("/psychology/eod")
+async def analyze_eod(data: SharkMindRequest, current_user: dict = Depends(get_current_user)):
+    """Shark Mind Engine - EOD Analysis Endpoint"""
+    
+    eod = data.eod_psych
+    telemetry = data.journal_telemetry
+    engine_state = data.engine_state or EngineStateInput()
+    phase = engine_state.phase
+    
+    # Calculate scores
+    scores = calculate_shark_scores(eod, telemetry, phase)
+    
+    # Detect patterns
+    patterns = detect_patterns(eod, telemetry)
+    
+    # Generate tomorrow protocol
+    tomorrow_protocol = generate_tomorrow_protocol(scores, patterns, eod, telemetry)
+    
+    # Determine key cause and well done
+    one_key_cause = "Hai mantenuto il controllo oggi."
+    one_thing_done_well = "Hai completato il check-in EOD - questo è già disciplina."
+    
+    if scores["compulsion_risk_0_100"] > 50:
+        one_key_cause = f"L'urge to trade ({eod.urge_to_trade_0_10}/10) sta influenzando le tue decisioni."
+    elif not eod.behaviors.get('limits_respected', True):
+        one_key_cause = "Hai superato i limiti che ti eri dato. Questo è il punto su cui lavorare."
+    elif eod.stress_1_10 > 7:
+        one_key_cause = f"Lo stress elevato ({eod.stress_1_10}/10) sta impattando la tua chiarezza."
+    elif len(eod.triggers_selected) > 2:
+        one_key_cause = f"Troppi trigger attivi: {', '.join(eod.triggers_selected[:3])}. Semplifica domani."
+    
+    if eod.behaviors.get('shutdown_ritual_done', False):
+        one_thing_done_well = "Hai completato il ritual di shutdown - ottimo per chiudere mentalmente la giornata."
+    elif eod.behaviors.get('limits_respected', True) and scores["discipline_0_100"] > 70:
+        one_thing_done_well = "Hai rispettato i limiti. Questa è disciplina vera, replicala domani."
+    elif eod.behaviors.get('breaks_taken', False):
+        one_thing_done_well = "Hai fatto pause durante la sessione - questo protegge il tuo capitale psicologico."
+    
+    # Calculate readiness
+    confidence_readiness = engine_state.confidence_readiness
+    if scores["shark_score_0_100"] > 70:
+        confidence_readiness = min(100, confidence_readiness + 5)
+    elif scores["shark_score_0_100"] < 40:
+        confidence_readiness = max(0, confidence_readiness - 10)
+    
+    # Check promotion eligibility
+    promotion_eligible = confidence_readiness >= 75 and scores["discipline_0_100"] >= 70
+    promotion_suggested = promotion_eligible and phase != "MAINTENANCE_PLUS"
+    
+    # Grace tokens logic
+    grace_tokens = engine_state.grace_tokens
+    if phase == "ACQUISITION" and not eod.behaviors.get('limits_respected', True):
+        grace_tokens = max(0, grace_tokens - 1)
+    
+    # Readiness message
+    if scores["shark_score_0_100"] >= 75:
+        message = f"Oggi hai dimostrato solidità. Shark Score {scores['shark_score_0_100']}. Continua così e la promozione arriverà naturalmente."
+    elif scores["shark_score_0_100"] >= 50:
+        message = f"Giornata nella media. Focus su {one_key_cause.split('.')[0].lower()}. Una cosa alla volta."
+    else:
+        message = f"Giornata impegnativa. Nessun giudizio. Domani riparto dalla micro-regola: una sola cosa da fare bene."
+    
+    # Build response (matching Shark Mind Engine output format)
+    result = {
+        "date": eod.date,
+        "phase": phase,
+        "level": engine_state.level,
+        "scores": scores,
+        "detected_patterns": patterns,
+        "one_key_cause": one_key_cause,
+        "one_thing_done_well": one_thing_done_well,
+        "tomorrow_protocol": tomorrow_protocol,
+        "readiness": {
+            "confidence_readiness_0_100": confidence_readiness,
+            "message_to_trader": message,
+            "promotion": {
+                "suggested": promotion_suggested,
+                "eligible": promotion_eligible,
+                "next_phase": "MAINTENANCE" if phase == "ACQUISITION" else "MAINTENANCE_PLUS",
+                "prove_week_required": promotion_suggested,
+                "why": ["Consistenza dimostrata", "Limiti rispettati"] if promotion_eligible else ["Continua a costruire abitudini"]
+            }
+        },
+        "data_updates": {
+            "grace_tokens_remaining": grace_tokens,
+            "flags": []
+        }
+    }
+    
+    # Add flags
+    if tomorrow_protocol["mode"] == "TILT_LOCK":
+        result["data_updates"]["flags"].append("TILT_LOCK_TRIGGERED")
+    if tomorrow_protocol["mode"] == "OVERTRADING_LOCK":
+        result["data_updates"]["flags"].append("OVERTRADING_FLAG")
+    
+    # Save to DB
+    await db.psychology_eod.insert_one({
+        "user_id": current_user["id"],
+        "date": eod.date,
+        "input": data.model_dump(),
+        "result": result,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    
+    # Update user XP
+    await db.users.update_one({"id": current_user["id"]}, {"$inc": {"xp": 20}})
+    
+    return result
+
 # ==================== JOURNAL ROUTES ====================
 
 @api_router.post("/journal/entry", response_model=JournalEntry)
