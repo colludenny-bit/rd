@@ -117,6 +117,14 @@ export default function NewsPage() {
 
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col fade-in" data-testid="news-page">
+      {/* CSS to hide TradingView widget header */}
+      <style>{`
+        .tradingview-widget-container iframe {
+          margin-top: -44px !important;
+          height: calc(100% + 44px) !important;
+        }
+      `}</style>
+
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }}
@@ -229,7 +237,7 @@ export default function NewsPage() {
       >
         <div 
           ref={calendarRef}
-          style={{ height: '100%', width: '100%' }}
+          style={{ height: '100%', width: '100%', overflow: 'hidden' }}
         />
       </div>
     </div>
