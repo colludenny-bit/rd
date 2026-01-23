@@ -90,15 +90,17 @@ function AppRoutes() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="report" element={<ReportPage />} />
         <Route path="strategy" element={<StrategyPage />} />
         <Route path="charts" element={<ChartsPage />} />
         <Route path="news" element={<NewsPage />} />
+        <Route path="risk" element={<RiskPage />} />
+        <Route path="statistics" element={<StatisticsPage />} />
+        <Route path="montecarlo" element={<MonteCarloPage />} />
         <Route path="psychology" element={<PsychologyPage />} />
         <Route path="journal" element={<JournalPage />} />
         <Route path="community" element={<CommunityPage />} />
         <Route path="ai" element={<AIPage />} />
-        <Route path="montecarlo" element={<MonteCarloPage />} />
-        <Route path="statistics" element={<StatisticsPage />} />
         <Route path="ascension" element={<AscensionPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
