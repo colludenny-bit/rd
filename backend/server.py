@@ -623,32 +623,159 @@ async def analyze_pdf(file: UploadFile = File(...), current_user: dict = Depends
         logger.error(f"PDF processing error: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing PDF: {str(e)}")
 
-# ==================== MARKET DATA (SIMULATED) ====================
+# ==================== MARKET DATA ====================
+
+# Cache for market data (refresh every 5 minutes)
+_market_cache = {"data": None, "timestamp": None}
+_vix_cache = {"data": None, "timestamp": None}
+
+def get_yf_ticker_safe(symbol: str, period: str = "5d", interval: str = "1d"):
+    """Safely fetch data from yfinance with error handling"""
+    try:
+        ticker = yf.Ticker(symbol)
+        hist = ticker.history(period=period, interval=interval)
+        if hist.empty:
+            return None
+        return hist
+    except Exception as e:
+        logger.error(f"yfinance error for {symbol}: {e}")
+        return None
+
+@api_router.get("/market/vix")
+async def get_vix_data():
+    """Get real VIX data from Yahoo Finance"""
+    global _vix_cache
+    now = datetime.now(timezone.utc)
+    
+    # Use cache if less than 5 minutes old
+    if _vix_cache["data"] and _vix_cache["timestamp"]:
+        age = (now - _vix_cache["timestamp"]).total_seconds()
+        if age < 300:  # 5 minutes
+            return _vix_cache["data"]
+    
+    try:
+        # Fetch VIX data
+        vix_hist = get_yf_ticker_safe("^VIX", period="5d", interval="1d")
+        
+        if vix_hist is not None and len(vix_hist) >= 2:
+            current = float(vix_hist['Close'].iloc[-1])
+            yesterday = float(vix_hist['Close'].iloc[-2])
+            change = ((current - yesterday) / yesterday) * 100
+            
+            # Determine direction
+            direction = "stable"
+            if change > 2:
+                direction = "rising"
+            elif change < -2:
+                direction = "falling"
+            
+            # Determine regime
+            regime = "neutral"
+            if current < 18:
+                regime = "risk-on"
+            elif current > 25:
+                regime = "risk-off"
+            
+            result = {
+                "current": round(current, 2),
+                "yesterday": round(yesterday, 2),
+                "change": round(change, 2),
+                "direction": direction,
+                "regime": regime,
+                "high_5d": round(float(vix_hist['High'].max()), 2),
+                "low_5d": round(float(vix_hist['Low'].min()), 2),
+                "timestamp": now.isoformat(),
+                "source": "yahoo_finance"
+            }
+            
+            _vix_cache["data"] = result
+            _vix_cache["timestamp"] = now
+            return result
+        else:
+            raise Exception("No VIX data available")
+            
+    except Exception as e:
+        logger.error(f"VIX fetch error: {e}")
+        # Fallback to simulated data
+        vix_base = 18 + random.random() * 6
+        return {
+            "current": round(vix_base, 2),
+            "yesterday": round(vix_base + (random.random() - 0.5) * 2, 2),
+            "change": round((random.random() - 0.5) * 4, 2),
+            "direction": random.choice(["rising", "falling", "stable"]),
+            "regime": "neutral",
+            "high_5d": round(vix_base + 3, 2),
+            "low_5d": round(vix_base - 3, 2),
+            "timestamp": now.isoformat(),
+            "source": "simulated"
+        }
 
 @api_router.get("/market/prices")
 async def get_market_prices():
-    # Simulated market data
-    base_prices = {
-        "XAUUSD": 2650.50,
-        "NAS100": 21450.25,
-        "SP500": 6050.75,
-        "DOW": 44200.50
+    """Get real market prices from Yahoo Finance"""
+    global _market_cache
+    now = datetime.now(timezone.utc)
+    
+    # Use cache if less than 2 minutes old
+    if _market_cache["data"] and _market_cache["timestamp"]:
+        age = (now - _market_cache["timestamp"]).total_seconds()
+        if age < 120:
+            return _market_cache["data"]
+    
+    # Yahoo Finance symbols mapping
+    symbols = {
+        "XAUUSD": "GC=F",      # Gold Futures
+        "NAS100": "NQ=F",      # Nasdaq Futures
+        "SP500": "ES=F",       # S&P 500 Futures
+        "EURUSD": "EURUSD=X",  # EUR/USD
+        "DOW": "YM=F"          # Dow Futures
     }
     
     prices = {}
-    for symbol, base in base_prices.items():
-        change_pct = (random.random() - 0.5) * 2  # -1% to +1%
-        price = base * (1 + change_pct / 100)
-        prices[symbol] = {
-            "symbol": symbol,
-            "price": round(price, 2),
-            "change": round(change_pct, 2),
-            "confidence": random.randint(55, 85),
-            "win_rate": random.randint(60, 75),
-            "max_dd": round(random.random() * 2, 1),
-            "trend": random.choice(["Rialzista", "Ribassista", "Neutrale"])
-        }
     
+    for display_name, yf_symbol in symbols.items():
+        try:
+            hist = get_yf_ticker_safe(yf_symbol, period="5d", interval="1d")
+            
+            if hist is not None and len(hist) >= 2:
+                current = float(hist['Close'].iloc[-1])
+                prev_close = float(hist['Close'].iloc[-2])
+                change_pct = ((current - prev_close) / prev_close) * 100
+                
+                # Calculate weekly high/low
+                weekly_high = float(hist['High'].max())
+                weekly_low = float(hist['Low'].min())
+                
+                prices[display_name] = {
+                    "symbol": display_name,
+                    "price": round(current, 2 if display_name != "EURUSD" else 5),
+                    "change": round(change_pct, 2),
+                    "prev_close": round(prev_close, 2 if display_name != "EURUSD" else 5),
+                    "weekly_high": round(weekly_high, 2 if display_name != "EURUSD" else 5),
+                    "weekly_low": round(weekly_low, 2 if display_name != "EURUSD" else 5),
+                    "source": "yahoo_finance"
+                }
+            else:
+                raise Exception(f"No data for {yf_symbol}")
+                
+        except Exception as e:
+            logger.warning(f"Price fetch error for {display_name}: {e}")
+            # Fallback prices
+            base_prices = {"XAUUSD": 2650, "NAS100": 21450, "SP500": 6050, "EURUSD": 1.085, "DOW": 44200}
+            base = base_prices.get(display_name, 100)
+            change = (random.random() - 0.5) * 2
+            prices[display_name] = {
+                "symbol": display_name,
+                "price": round(base * (1 + change/100), 2 if display_name != "EURUSD" else 5),
+                "change": round(change, 2),
+                "prev_close": round(base, 2 if display_name != "EURUSD" else 5),
+                "weekly_high": round(base * 1.02, 2 if display_name != "EURUSD" else 5),
+                "weekly_low": round(base * 0.98, 2 if display_name != "EURUSD" else 5),
+                "source": "simulated"
+            }
+    
+    _market_cache["data"] = prices
+    _market_cache["timestamp"] = now
     return prices
 
 # ==================== PHILOSOPHY ====================
