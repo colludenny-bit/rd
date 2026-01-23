@@ -15,6 +15,9 @@ import bcrypt
 from PyPDF2 import PdfReader
 import io
 import random
+import yfinance as yf
+from functools import lru_cache
+import asyncio
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
