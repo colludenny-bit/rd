@@ -29,6 +29,7 @@ import {
 
 const navItems = [
   { path: '/', icon: Home, label: 'Home' },
+  { path: '/crypto', icon: Bitcoin, label: 'Crypto' },
   { path: '/report', icon: BarChart3, label: 'Report' },
   { path: '/news', icon: Newspaper, label: 'News' },
   { path: '/macro', icon: Globe, label: 'Macro' },
@@ -38,7 +39,7 @@ const navItems = [
   { path: '/statistics', icon: LineChart, label: 'Stats' },
   { path: '/strategy', icon: Target, label: 'Strategia' },
   { path: '/montecarlo', icon: Dices, label: 'Monte Carlo' },
-  { path: '/crypto', icon: Bitcoin, label: 'Crypto' },
+  { path: '/calculator', icon: Calculator, label: 'Calcolatore' },
   { path: '/journal', icon: BookOpen, label: 'Journal' },
   { path: '/psychology', icon: Brain, label: 'Psicologia' },
   { path: '/ai', icon: Sparkles, label: 'Karion AI' },
