@@ -365,14 +365,72 @@ export default function ReportPage() {
   const [marketData, setMarketData] = useState(generateMarketData());
   const [signals, setSignals] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [todaySignals, setTodaySignals] = useState(() => {
+    // Load persisted signals from localStorage
+    const today = new Date().toDateString();
+    const stored = localStorage.getItem('karion_daily_signals');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.date === today) {
+          return parsed.signals;
+        }
+      } catch (e) {}
+    }
+    return [];
+  });
 
+  // Generate and persist signals (max 2 per asset per day)
   useEffect(() => {
-    setSignals(generateSignals(marketData));
+    const today = new Date().toDateString();
+    const newSignals = generateSignals(marketData);
+    
+    // If we have persisted signals for today, update prices only
+    if (todaySignals.length > 0) {
+      const updatedSignals = todaySignals.map(sig => {
+        const assetData = marketData.assets[sig.asset];
+        if (assetData) {
+          return {
+            ...sig,
+            currentPrice: assetData.current.toFixed(sig.asset === 'EURUSD' ? 5 : 2)
+          };
+        }
+        return sig;
+      });
+      setTodaySignals(updatedSignals);
+      setSignals(updatedSignals);
+    } else {
+      // First time today - generate max 2 signals per asset
+      const limitedSignals = [];
+      const assetCounts = {};
+      
+      newSignals.forEach(sig => {
+        const count = assetCounts[sig.asset] || 0;
+        if (count < 2) {
+          limitedSignals.push({
+            ...sig,
+            generatedAt: new Date().toLocaleTimeString('it-IT'),
+            currentPrice: marketData.assets[sig.asset]?.current.toFixed(sig.asset === 'EURUSD' ? 5 : 2)
+          });
+          assetCounts[sig.asset] = count + 1;
+        }
+      });
+      
+      // Persist to localStorage
+      localStorage.setItem('karion_daily_signals', JSON.stringify({
+        date: today,
+        signals: limitedSignals
+      }));
+      
+      setTodaySignals(limitedSignals);
+      setSignals(limitedSignals);
+    }
   }, [marketData]);
 
   const refreshData = () => {
     setIsLoading(true);
     setTimeout(() => {
+      // Only refresh market data, signals stay persistent
       setMarketData(generateMarketData());
       setIsLoading(false);
     }, 1000);
