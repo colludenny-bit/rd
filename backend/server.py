@@ -15,6 +15,7 @@ import bcrypt
 from PyPDF2 import PdfReader
 import io
 import random
+import math
 import yfinance as yf
 from functools import lru_cache
 import asyncio
