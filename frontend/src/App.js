@@ -24,6 +24,8 @@ import StatisticsPage from './components/pages/StatisticsPage';
 import AscensionPage from './components/pages/AscensionPage';
 import SettingsPage from './components/pages/SettingsPage';
 import NewsPage from './components/pages/NewsPage';
+import ReportPage from './components/pages/ReportPage';
+import RiskPage from './components/pages/RiskPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
