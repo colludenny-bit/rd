@@ -27,6 +27,9 @@ import NewsPage from './components/pages/NewsPage';
 import ReportPage from './components/pages/ReportPage';
 import RiskPage from './components/pages/RiskPage';
 import COTPage from './components/pages/COTPage';
+import OptionsFlowPage from './components/pages/OptionsFlowPage';
+import MacroEconomyPage from './components/pages/MacroEconomyPage';
+import CryptoPage from './components/pages/CryptoPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
