@@ -421,7 +421,7 @@ export default function COTPage() {
                   <p><strong className="text-foreground">Dealer:</strong> Market maker/intermediari. Controparte naturale.</p>
                 </div>
                 <div>
-                  <p><strong className="text-foreground">Percentile 52w:</strong> Posizione relativa nell'ultimo anno. Estremi = rischio reversal.</p>
+                  <p><strong className="text-foreground">Percentile 52w:</strong> Posizione relativa nell&apos;ultimo anno. Estremi = rischio reversal.</p>
                 </div>
               </div>
             </CardContent>
