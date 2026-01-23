@@ -15,7 +15,7 @@ import {
   BarChart3, Target, Percent, DollarSign, Hash, Download,
   Gauge, ArrowDownRight, Calculator
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
