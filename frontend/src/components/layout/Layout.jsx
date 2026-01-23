@@ -18,6 +18,13 @@ export const Layout = () => {
 
       {/* Main Content */}
       <main className="lg:ml-20 min-h-screen pb-20 lg:pb-0">
+        {/* Desktop Header with Karion Title */}
+        <header className="hidden lg:flex items-center justify-center py-4 border-b border-border/30">
+          <h1 className="text-2xl font-bold tracking-widest">
+            <span className="text-gradient">KARION</span>
+          </h1>
+        </header>
+
         {/* Mobile Header */}
         <header className="lg:hidden sticky top-0 z-30 glass border-b border-border">
           <div className="flex items-center justify-between px-4 py-3">
@@ -28,7 +35,9 @@ export const Layout = () => {
             >
               <Menu className="w-6 h-6" />
             </button>
-            <span className="font-bold text-xl tracking-wide text-gradient">Karion</span>
+            <h1 className="text-xl font-bold tracking-widest">
+              <span className="text-gradient">KARION</span>
+            </h1>
             <div className="w-10" /> {/* Spacer for centering */}
           </div>
         </header>
