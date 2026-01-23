@@ -62,7 +62,7 @@ export default function AuthPage() {
               <TrendingUp className="w-8 h-8 text-primary" />
             </motion.div>
             <div>
-              <CardTitle className="text-2xl font-bold">Trading Hub</CardTitle>
+              <CardTitle className="text-2xl font-bold tracking-widest">KARION</CardTitle>
               <CardDescription className="text-muted-foreground mt-2">
                 {isLogin ? 'Bentornato, trader' : 'Inizia il tuo viaggio'}
               </CardDescription>
