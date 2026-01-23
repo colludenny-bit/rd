@@ -12,9 +12,6 @@ import {
   Brain,
   BookOpen,
   Users,
-  Bot,
-  Dices,
-  BarChart3,
   Sparkles,
   Settings,
   LogOut,
@@ -38,7 +35,7 @@ const navItems = [
   { path: '/psychology', icon: Brain, label: 'Psicologia' },
   { path: '/journal', icon: BookOpen, label: 'Journal' },
   { path: '/community', icon: Users, label: 'Community' },
-  { path: '/ai', icon: Bot, label: 'AI' },
+  { path: '/ai', icon: Sparkles, label: 'AI' },
 ];
 
 export const Sidebar = ({ isOpen, onClose }) => {
