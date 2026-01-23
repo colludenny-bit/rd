@@ -1,212 +1,388 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Card, CardContent } from '../ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { cn } from '../../lib/utils';
-import { TrendingUp, TrendingDown, Calendar, BarChart3, RefreshCw } from 'lucide-react';
+import { 
+  TrendingUp, TrendingDown, Calendar, BarChart3, RefreshCw, 
+  AlertTriangle, Clock, Target, Shield, Zap, Activity,
+  ArrowUp, ArrowDown, Minus, CheckCircle2, XCircle, Eye
+} from 'lucide-react';
 
-const macroData = {
-  fedRates: { value: '3.50-3.75%', subtext: '95% hold probability' },
-  cpi: { value: '2.7% YoY', subtext: 'Core: 2.6%' },
-  nfp: { value: '+50k', subtext: 'EU: 4.4%' },
-  nextEvent: { date: 'Jan 27-28', name: 'FOMC Meeting' }
+// Simulated market data - in production would come from API
+const generateMarketData = () => {
+  const now = new Date();
+  const vixBase = 18 + Math.random() * 8;
+  const vixChange = (Math.random() - 0.5) * 2;
+  
+  return {
+    vix: {
+      current: vixBase.toFixed(2),
+      change: vixChange.toFixed(2),
+      direction: vixChange > 0.3 ? 'rising' : vixChange < -0.3 ? 'falling' : 'stable',
+      regime: vixBase > 25 ? 'risk-off' : vixBase > 20 ? 'neutral' : 'risk-on'
+    },
+    assets: {
+      NQ: {
+        name: 'NASDAQ 100',
+        current: 21450 + Math.random() * 200,
+        weeklyHigh: 21680,
+        weeklyLow: 21120,
+        twoWeekHigh: 21750,
+        twoWeekLow: 20980,
+        asiaHigh: 21520,
+        asiaLow: 21380,
+        asiaClose: 21450,
+        yesterdayHigh: 21550,
+        yesterdayLow: 21300,
+        yesterdayClose: 21420
+      },
+      SP500: {
+        name: 'S&P 500',
+        current: 6050 + Math.random() * 30,
+        weeklyHigh: 6095,
+        weeklyLow: 5980,
+        twoWeekHigh: 6120,
+        twoWeekLow: 5920,
+        asiaHigh: 6065,
+        asiaLow: 6035,
+        asiaClose: 6050,
+        yesterdayHigh: 6070,
+        yesterdayLow: 6020,
+        yesterdayClose: 6045
+      },
+      XAUUSD: {
+        name: 'Gold',
+        current: 2650 + Math.random() * 20,
+        weeklyHigh: 2680,
+        weeklyLow: 2620,
+        twoWeekHigh: 2700,
+        twoWeekLow: 2590,
+        asiaHigh: 2660,
+        asiaLow: 2640,
+        asiaClose: 2652,
+        yesterdayHigh: 2665,
+        yesterdayLow: 2635,
+        yesterdayClose: 2648
+      },
+      EURUSD: {
+        name: 'EUR/USD',
+        current: 1.0850 + Math.random() * 0.005,
+        weeklyHigh: 1.0920,
+        weeklyLow: 1.0780,
+        twoWeekHigh: 1.0950,
+        twoWeekLow: 1.0720,
+        asiaHigh: 1.0870,
+        asiaLow: 1.0840,
+        asiaClose: 1.0855,
+        yesterdayHigh: 1.0880,
+        yesterdayLow: 1.0820,
+        yesterdayClose: 1.0845
+      }
+    },
+    lastUpdate: now.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+  };
 };
 
-const analysisData = [
-  {
-    symbol: 'NASDAQ',
-    shortTerm: {
-      direction: 'bearish',
-      timeframe: 'Short (1-5d)',
-      probability: 65,
-      current: 25689,
-      target: 25200,
-      stopLoss: 25900,
-      winRate: 68,
-      maxDD: 1,
-      riskReward: 2.32,
-      correlations: 'CPI >2.7% → indices -1%, NFP miss → equity -0.5%',
-      triggers: 'Fed Jan 27-28 (95% hold), NFP Feb 3',
-      analysis: 'Sticky CPI data suggests continued bear pressure. Range 40 breakout probability 68% with volume >1.5x. GEX 0DTE showing 62% S/R reactions.'
-    },
-    mediumTerm: {
-      direction: 'bullish',
-      timeframe: 'Medium (1-4w)',
-      probability: 75,
-      current: 25689,
-      target: 26500,
-      stopLoss: 25400,
-      winRate: 72,
-      maxDD: 1.5,
-      riskReward: 2.81,
-      correlations: 'Fed cuts → equity +2%, labor cooling → growth stocks +1.5%',
-      triggers: 'Potential rate cuts 2026 (20% probability)',
-      analysis: 'Medium-term bull bias based on Fed pivot expectations and cooling labor market. Historical analysis 2019-2025 shows 75% success rate.'
-    }
-  },
-  {
-    symbol: 'S&P 500',
-    shortTerm: {
-      direction: 'bearish',
-      timeframe: 'Short (1-5d)',
-      probability: 60,
-      current: 6050,
-      target: 5980,
-      stopLoss: 6100,
-      winRate: 65,
-      maxDD: 0.8,
-      riskReward: 1.95,
-      correlations: 'VIX spike → SPX -0.8%, DXY strength → SPX -0.5%',
-      triggers: 'Earnings season Q4, Tech guidance',
-      analysis: 'Short-term consolidation expected. Support at 6000 psychological level.'
-    },
-    mediumTerm: {
-      direction: 'bullish',
-      timeframe: 'Medium (1-4w)',
-      probability: 70,
-      current: 6050,
-      target: 6200,
-      stopLoss: 5950,
-      winRate: 70,
-      maxDD: 1.2,
-      riskReward: 2.5,
-      correlations: 'Earnings beat → SPX +1.2%, Fed dovish → SPX +2%',
-      triggers: 'Q4 earnings season positive outlook',
-      analysis: 'Bullish medium-term outlook supported by strong earnings expectations and potential Fed pivot.'
-    }
-  },
-  {
-    symbol: 'GOLD',
-    shortTerm: {
-      direction: 'bullish',
-      timeframe: 'Short (1-5d)',
-      probability: 70,
-      current: 2650,
-      target: 2700,
-      stopLoss: 2620,
-      winRate: 72,
-      maxDD: 1.1,
-      riskReward: 2.67,
-      correlations: 'DXY weakness → Gold +1%, Risk-off → Gold +0.8%',
-      triggers: 'Geopolitical tensions, USD weakness',
-      analysis: 'Gold showing strength on safe-haven flows. Technical breakout above 2650 confirmed.'
-    },
-    mediumTerm: {
-      direction: 'bullish',
-      timeframe: 'Medium (1-4w)',
-      probability: 75,
-      current: 2650,
-      target: 2750,
-      stopLoss: 2580,
-      winRate: 74,
-      maxDD: 2.6,
-      riskReward: 2.43,
-      correlations: 'Central bank buying → Gold +2%, Inflation fears → Gold +1.5%',
-      triggers: 'Central bank gold accumulation continues',
-      analysis: 'Strong institutional demand and inflation hedge positioning support bullish outlook.'
-    }
+// Calculate distance percentage
+const calcDistancePercent = (current, level) => {
+  return (((current - level) / level) * 100).toFixed(2);
+};
+
+// Calculate probability based on strategy rules
+const calculateProbability = (asset, data, vix, strategy) => {
+  let baseProbability = 50;
+  const current = data.current;
+  
+  // Distance from extremes
+  const distFromHigh = ((data.twoWeekHigh - current) / data.twoWeekHigh) * 100;
+  const distFromLow = ((current - data.twoWeekLow) / data.twoWeekLow) * 100;
+  
+  // VIX factor
+  const vixValue = parseFloat(vix.current);
+  if (vix.regime === 'risk-on') baseProbability += 5;
+  if (vix.regime === 'risk-off') baseProbability -= 5;
+  if (vix.direction === 'falling') baseProbability += 3;
+  if (vix.direction === 'rising') baseProbability -= 3;
+  
+  // Premium zone factor
+  if (distFromHigh < 1 || distFromLow < 1) {
+    baseProbability += 10; // Near premium zone
   }
+  
+  // Strategy specific
+  if (strategy === 1) {
+    // News Spike Reversion - higher prob if rejection visible
+    baseProbability += 5;
+  } else if (strategy === 2) {
+    // VIX Range Fade - higher prob if VIX stable
+    if (vix.direction === 'stable') baseProbability += 8;
+  }
+  
+  // Cap probability
+  return Math.min(Math.max(baseProbability, 35), 85);
+};
+
+// Generate signals based on strategies
+const generateSignals = (marketData) => {
+  const signals = [];
+  const { vix, assets } = marketData;
+  
+  Object.entries(assets).forEach(([symbol, data]) => {
+    const current = data.current;
+    const prob1 = calculateProbability(symbol, data, vix, 1);
+    const prob2 = calculateProbability(symbol, data, vix, 2);
+    
+    // Strategy 1 - News Spike Reversion
+    if (prob1 >= 55) {
+      const isNearHigh = current > data.weeklyHigh * 0.995;
+      const isNearLow = current < data.weeklyLow * 1.005;
+      
+      if (isNearHigh || isNearLow) {
+        const direction = isNearHigh ? 'short' : 'long';
+        const entry = current;
+        const stopDist = isNearHigh ? data.twoWeekHigh - current + 5 : current - data.twoWeekLow + 5;
+        const oneR = Math.abs(stopDist);
+        
+        signals.push({
+          id: `${symbol}-S1`,
+          asset: symbol,
+          assetName: data.name,
+          strategy: 1,
+          strategyName: 'News Spike Reversion',
+          direction,
+          trigger: isNearHigh 
+            ? `Prezzo vicino 2W High (${data.twoWeekHigh}), attendi rejection e rientro sotto ${data.weeklyHigh}`
+            : `Prezzo vicino 2W Low (${data.twoWeekLow}), attendi rejection e rientro sopra ${data.weeklyLow}`,
+          entry: entry.toFixed(symbol === 'EURUSD' ? 5 : 2),
+          stop: isNearHigh 
+            ? (data.twoWeekHigh + oneR * 0.1).toFixed(symbol === 'EURUSD' ? 5 : 2)
+            : (data.twoWeekLow - oneR * 0.1).toFixed(symbol === 'EURUSD' ? 5 : 2),
+          oneR: oneR.toFixed(2),
+          tp1: (entry + (direction === 'long' ? 1 : -1) * oneR * 1.2).toFixed(symbol === 'EURUSD' ? 5 : 2),
+          tp2: (entry + (direction === 'long' ? 1 : -1) * oneR * 1.3).toFixed(symbol === 'EURUSD' ? 5 : 2),
+          probability: prob1,
+          confidence: Math.round(prob1 * 1.2),
+          status: 'watch',
+          pnlR: 0,
+          motivations: [
+            `Prezzo esteso verso zona premium ${isNearHigh ? 'high' : 'low'}`,
+            `VIX ${vix.regime} (${vix.current}) - ${vix.direction === 'falling' ? 'supporta' : 'neutro per'} mean reversion`,
+            `Spazio sufficiente per 1.2R verso centro range`
+          ]
+        });
+      }
+    }
+    
+    // Strategy 2 - VIX Range Fade (only for NQ and SP500)
+    if ((symbol === 'NQ' || symbol === 'SP500') && prob2 >= 55 && vix.regime !== 'risk-off') {
+      const midPoint = (data.weeklyHigh + data.weeklyLow) / 2;
+      const distFromMid = Math.abs(current - midPoint);
+      const range = data.weeklyHigh - data.weeklyLow;
+      
+      if (distFromMid > range * 0.35) {
+        const direction = current > midPoint ? 'short' : 'long';
+        const entry = current;
+        const stopLevel = direction === 'short' ? data.weeklyHigh : data.weeklyLow;
+        const oneR = Math.abs(entry - stopLevel);
+        
+        signals.push({
+          id: `${symbol}-S2`,
+          asset: symbol,
+          assetName: data.name,
+          strategy: 2,
+          strategyName: 'VIX Range Fade',
+          direction,
+          trigger: `Prezzo esteso ${direction === 'short' ? 'verso high' : 'verso low'}, VIX ${vix.direction}, attendi secondo test e rejection`,
+          entry: entry.toFixed(2),
+          stop: (stopLevel + (direction === 'short' ? 1 : -1) * oneR * 0.05).toFixed(2),
+          oneR: oneR.toFixed(2),
+          tp1: (entry + (direction === 'long' ? 1 : -1) * oneR * 1.2).toFixed(2),
+          tp2: (entry + (direction === 'long' ? 1 : -1) * oneR * 1.3).toFixed(2),
+          probability: prob2,
+          confidence: Math.round(prob2 * 1.15),
+          status: 'watch',
+          pnlR: 0,
+          motivations: [
+            `No news high-impact imminenti`,
+            `VIX stabile/in calo (${vix.current}) favorisce mean-reversion`,
+            `Prezzo esteso da mid-range, secondo test in formazione`
+          ]
+        });
+      }
+    }
+  });
+  
+  return signals.filter(s => s.probability >= 55).slice(0, 6);
+};
+
+// Macro events
+const macroEvents = [
+  { time: '14:30', event: 'US Initial Jobless Claims', impact: 'medium', consensus: '220K', previous: '217K' },
+  { time: '15:45', event: 'US S&P Global Manufacturing PMI', impact: 'medium', consensus: '49.5', previous: '49.4' },
+  { time: '16:00', event: 'US Existing Home Sales', impact: 'low', consensus: '4.15M', previous: '4.09M' },
+  { time: '20:00', event: 'FOMC Member Speech', impact: 'high', consensus: '-', previous: '-' },
 ];
 
-const AnalysisCard = ({ data, term }) => {
-  const info = term === 'short' ? data.shortTerm : data.mediumTerm;
-  const isBullish = info.direction === 'bullish';
+const SignalCard = ({ signal }) => {
+  const isLong = signal.direction === 'long';
   
   return (
-    <Card className="bg-card/80 border-border/50">
-      <CardContent className="p-5">
+    <Card className={cn(
+      "bg-card/80 border-border/50",
+      signal.status === 'active' && "border-primary/50"
+    )}>
+      <CardContent className="p-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            {isBullish ? (
+            {isLong ? (
               <TrendingUp className="w-5 h-5 text-primary" />
             ) : (
               <TrendingDown className="w-5 h-5 text-red-500" />
             )}
-            <span className="font-bold text-lg">{data.symbol}</span>
+            <span className="font-bold">{signal.asset}</span>
+            <span className="text-xs text-muted-foreground">({signal.assetName})</span>
           </div>
-          <span className={cn(
-            "px-3 py-1 rounded-full text-xs font-semibold",
-            isBullish ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-400"
-          )}>
-            {info.direction}
-          </span>
-        </div>
-
-        {/* Timeframe & Probability */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Timeframe</p>
-            <p className="font-semibold">{info.timeframe}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Probability</p>
-            <p className={cn("font-bold text-lg", isBullish ? "text-primary" : "text-red-400")}>
-              {info.probability}%
-            </p>
-          </div>
-        </div>
-
-        {/* Price Levels */}
-        <div className="grid grid-cols-3 gap-3 p-3 bg-secondary/30 rounded-lg mb-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Current</p>
-            <p className="font-semibold">${info.current.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Target</p>
-            <p className="font-semibold text-primary">${info.target.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Stop Loss</p>
-            <p className="font-semibold text-red-400">${info.stopLoss.toLocaleString()}</p>
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "px-2 py-0.5 rounded text-xs font-medium",
+              signal.status === 'watch' && "bg-yellow-500/20 text-yellow-400",
+              signal.status === 'active' && "bg-primary/20 text-primary",
+              signal.status === 'closed' && "bg-muted text-muted-foreground"
+            )}>
+              {signal.status === 'watch' ? <Eye className="w-3 h-3 inline mr-1" /> : 
+               signal.status === 'active' ? <Zap className="w-3 h-3 inline mr-1" /> :
+               <CheckCircle2 className="w-3 h-3 inline mr-1" />}
+              {signal.status.toUpperCase()}
+            </span>
+            <span className={cn(
+              "px-2 py-0.5 rounded-full text-xs font-semibold",
+              isLong ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-400"
+            )}>
+              {signal.direction.toUpperCase()}
+            </span>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="text-center p-2 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground">Win Rate</p>
-            <p className="font-bold">{info.winRate}%</p>
-          </div>
-          <div className="text-center p-2 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground">Max DD</p>
-            <p className="font-bold">{info.maxDD}%</p>
-          </div>
-          <div className="text-center p-2 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground">Risk/Reward</p>
-            <p className="font-bold">{info.riskReward}</p>
-          </div>
+        {/* Strategy */}
+        <div className="mb-3 p-2 bg-secondary/30 rounded-lg">
+          <p className="text-xs text-muted-foreground">Strategia {signal.strategy}</p>
+          <p className="text-sm font-medium">{signal.strategyName}</p>
         </div>
 
-        {/* Correlations */}
+        {/* Trigger */}
         <div className="mb-3">
-          <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-            <BarChart3 className="w-3 h-3" /> Correlations
-          </p>
-          <p className="text-sm p-2 bg-secondary/30 rounded-lg">{info.correlations}</p>
+          <p className="text-xs text-muted-foreground mb-1">Trigger</p>
+          <p className="text-sm">{signal.trigger}</p>
         </div>
 
-        {/* Event Triggers */}
-        <div className="mb-3">
-          <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
-            <Calendar className="w-3 h-3" /> Event Triggers
-          </p>
-          <p className="text-sm p-2 bg-secondary/30 rounded-lg">{info.triggers}</p>
+        {/* Levels Grid */}
+        <div className="grid grid-cols-4 gap-2 mb-3">
+          <div className="text-center p-2 bg-secondary/30 rounded">
+            <p className="text-xs text-muted-foreground">Entry</p>
+            <p className="font-semibold text-sm">{signal.entry}</p>
+          </div>
+          <div className="text-center p-2 bg-red-500/10 rounded">
+            <p className="text-xs text-muted-foreground">Stop</p>
+            <p className="font-semibold text-sm text-red-400">{signal.stop}</p>
+          </div>
+          <div className="text-center p-2 bg-primary/10 rounded">
+            <p className="text-xs text-muted-foreground">TP1 (1.2R)</p>
+            <p className="font-semibold text-sm text-primary">{signal.tp1}</p>
+          </div>
+          <div className="text-center p-2 bg-primary/5 rounded">
+            <p className="text-xs text-muted-foreground">TP2 (1.3R)</p>
+            <p className="font-semibold text-sm text-primary/70">{signal.tp2}</p>
+          </div>
         </div>
 
-        {/* Analysis */}
-        <p className="text-sm text-muted-foreground">{info.analysis}</p>
+        {/* 1R Info */}
+        <div className="flex items-center justify-between mb-3 text-sm">
+          <span className="text-muted-foreground">1R = {signal.oneR} pts</span>
+          {signal.status === 'active' && (
+            <span className={cn(
+              "font-bold",
+              signal.pnlR >= 0 ? "text-primary" : "text-red-400"
+            )}>
+              P&L: {signal.pnlR >= 0 ? '+' : ''}{signal.pnlR.toFixed(2)}R
+            </span>
+          )}
+        </div>
+
+        {/* Probability & Confidence */}
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="p-2 bg-secondary/30 rounded-lg">
+            <p className="text-xs text-muted-foreground mb-1">Probabilità</p>
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "text-xl font-bold",
+                signal.probability >= 65 ? "text-primary" : 
+                signal.probability >= 55 ? "text-yellow-400" : "text-red-400"
+              )}>
+                {signal.probability}%
+              </span>
+              {signal.probChange && (
+                <span className={cn(
+                  "text-xs",
+                  signal.probChange === 'up' ? "text-primary" : 
+                  signal.probChange === 'down' ? "text-red-400" : "text-muted-foreground"
+                )}>
+                  {signal.probChange === 'up' ? <ArrowUp className="w-3 h-3" /> :
+                   signal.probChange === 'down' ? <ArrowDown className="w-3 h-3" /> :
+                   <Minus className="w-3 h-3" />}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="p-2 bg-secondary/30 rounded-lg">
+            <p className="text-xs text-muted-foreground mb-1">Confidence</p>
+            <span className="text-xl font-bold">{signal.confidence}</span>
+            <span className="text-xs text-muted-foreground">/100</span>
+          </div>
+        </div>
+
+        {/* Motivations */}
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Motivazione</p>
+          <ul className="text-xs space-y-1">
+            {signal.motivations.map((m, i) => (
+              <li key={i} className="flex items-start gap-1">
+                <span className="text-primary">•</span>
+                <span>{m}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </CardContent>
     </Card>
   );
 };
 
 export default function ReportPage() {
-  const [filter, setFilter] = useState('all');
+  const [term, setTerm] = useState('short');
+  const [marketData, setMarketData] = useState(generateMarketData());
+  const [signals, setSignals] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setSignals(generateSignals(marketData));
+  }, [marketData]);
+
+  const refreshData = () => {
+    setIsLoading(true);
+    setTimeout(() => {
+      setMarketData(generateMarketData());
+      setIsLoading(false);
+    }, 1000);
+  };
+
+  const { vix, assets } = marketData;
 
   return (
     <div className="space-y-6 fade-in" data-testid="report-page">
+      {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }} 
         animate={{ opacity: 1, y: 0 }}
@@ -214,86 +390,351 @@ export default function ReportPage() {
       >
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3">
-            <svg className="w-8 h-8 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/>
-              <path d="M12 6v6l4 2"/>
-            </svg>
-            Report
+            <BarChart3 className="w-8 h-8 text-primary" />
+            Strategy Report
           </h1>
-          <p className="text-muted-foreground mt-1">Comprehensive macro analysis and market outlook</p>
+          <p className="text-muted-foreground mt-1">
+            Analisi strategica basata su regole • Ultimo update: {marketData.lastUpdate}
+          </p>
         </div>
         
-        <Button className="rounded-xl bg-primary hover:bg-primary/90">
-          <RefreshCw className="w-4 h-4 mr-2" />
-          Generate New Analysis
+        <Button 
+          onClick={refreshData}
+          disabled={isLoading}
+          className="rounded-xl bg-primary hover:bg-primary/90"
+        >
+          <RefreshCw className={cn("w-4 h-4 mr-2", isLoading && "animate-spin")} />
+          Aggiorna Dati
         </Button>
       </motion.div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2">
-        {['all', 'short', 'medium'].map((f) => (
+      {/* Term Selection */}
+      <div className="flex items-center gap-3">
+        {[
+          { id: 'short', label: 'Short-term (1-2d)', active: true },
+          { id: 'medium', label: 'Medium-term (1-2w)', active: false },
+          { id: 'long', label: 'Long-term (1-4w)', active: false }
+        ].map((t) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
+            key={t.id}
+            onClick={() => t.active && setTerm(t.id)}
+            disabled={!t.active}
             className={cn(
               "px-4 py-2 rounded-xl text-sm font-medium transition-all",
-              filter === f 
+              term === t.id 
                 ? "bg-primary text-primary-foreground" 
-                : "bg-card border border-border hover:border-primary/50"
+                : t.active
+                  ? "bg-card border border-border hover:border-primary/50"
+                  : "bg-card/50 border border-border/50 text-muted-foreground cursor-not-allowed"
             )}
           >
-            {f === 'all' ? 'All' : f === 'short' ? 'Short-term (1-5d)' : 'Medium-term (1-4w)'}
+            {t.label}
+            {!t.active && <span className="ml-1 text-xs">(soon)</span>}
           </button>
         ))}
       </div>
 
-      {/* Macro Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-card/80 border-border/50">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">Fed Rates</p>
-            <p className="text-2xl font-bold">{macroData.fedRates.value}</p>
-            <p className="text-xs text-muted-foreground">{macroData.fedRates.subtext}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/80 border-border/50">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">CPI (Dec)</p>
-            <p className="text-2xl font-bold">{macroData.cpi.value}</p>
-            <p className="text-xs text-muted-foreground">{macroData.cpi.subtext}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/80 border-border/50">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1">NFP</p>
-            <p className="text-2xl font-bold">{macroData.nfp.value}</p>
-            <p className="text-xs text-muted-foreground">{macroData.nfp.subtext}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/80 border-border/50">
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
-              <Calendar className="w-3 h-3" /> Next Event
-            </p>
-            <p className="text-2xl font-bold">{macroData.nextEvent.date}</p>
-            <p className="text-xs text-muted-foreground">{macroData.nextEvent.name}</p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Main Tabs */}
+      <Tabs defaultValue="signals" className="space-y-4">
+        <TabsList className="bg-secondary/50 p-1 rounded-xl flex-wrap h-auto">
+          <TabsTrigger value="macro" className="rounded-lg">
+            <Calendar className="w-4 h-4 mr-2" />
+            Macro & Calendario
+          </TabsTrigger>
+          <TabsTrigger value="vix" className="rounded-lg">
+            <Activity className="w-4 h-4 mr-2" />
+            Regime VIX
+          </TabsTrigger>
+          <TabsTrigger value="levels" className="rounded-lg">
+            <Target className="w-4 h-4 mr-2" />
+            Livelli Premium
+          </TabsTrigger>
+          <TabsTrigger value="signals" className="rounded-lg">
+            <Zap className="w-4 h-4 mr-2" />
+            Segnali Oggi
+          </TabsTrigger>
+          <TabsTrigger value="updates" className="rounded-lg">
+            <Clock className="w-4 h-4 mr-2" />
+            Update 2H
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Analysis Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {analysisData.map((data) => (
-          <React.Fragment key={data.symbol}>
-            {(filter === 'all' || filter === 'short') && (
-              <AnalysisCard data={data} term="short" />
-            )}
-            {(filter === 'all' || filter === 'medium') && (
-              <AnalysisCard data={data} term="medium" />
-            )}
-          </React.Fragment>
-        ))}
-      </div>
+        {/* Tab A - Macro & Calendario */}
+        <TabsContent value="macro" className="space-y-4">
+          <Card className="bg-card/80 border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-primary" />
+                Eventi del Giorno (USA + Eurozona)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {macroEvents.map((event, i) => (
+                  <div 
+                    key={i}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-lg",
+                      event.impact === 'high' ? "bg-red-500/10 border border-red-500/20" :
+                      event.impact === 'medium' ? "bg-yellow-500/10 border border-yellow-500/20" :
+                      "bg-secondary/30"
+                    )}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="font-mono text-sm font-bold">{event.time}</span>
+                      <div>
+                        <p className="font-medium">{event.event}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Cons: {event.consensus} | Prev: {event.previous}
+                        </p>
+                      </div>
+                    </div>
+                    <span className={cn(
+                      "px-2 py-1 rounded text-xs font-medium",
+                      event.impact === 'high' ? "bg-red-500/20 text-red-400" :
+                      event.impact === 'medium' ? "bg-yellow-500/20 text-yellow-400" :
+                      "bg-secondary text-muted-foreground"
+                    )}>
+                      {event.impact.toUpperCase()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              
+              {/* No-Trade Window */}
+              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-sm font-medium text-red-400 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  No-Trade Window
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Evitare entry 15 min prima e dopo eventi HIGH impact (es. 19:45-20:15 per FOMC Speech)
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab B - VIX Regime */}
+        <TabsContent value="vix" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="bg-card/80 border-border/50">
+              <CardContent className="p-6 text-center">
+                <Activity className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <p className="text-xs text-muted-foreground mb-1">VIX Attuale</p>
+                <p className="text-4xl font-bold">{vix.current}</p>
+                <p className={cn(
+                  "text-sm mt-1",
+                  parseFloat(vix.change) > 0 ? "text-red-400" : "text-primary"
+                )}>
+                  {parseFloat(vix.change) > 0 ? '+' : ''}{vix.change} vs ieri
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card className="bg-card/80 border-border/50">
+              <CardContent className="p-6 text-center">
+                {vix.direction === 'rising' ? (
+                  <ArrowUp className="w-8 h-8 mx-auto mb-2 text-red-400" />
+                ) : vix.direction === 'falling' ? (
+                  <ArrowDown className="w-8 h-8 mx-auto mb-2 text-primary" />
+                ) : (
+                  <Minus className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
+                )}
+                <p className="text-xs text-muted-foreground mb-1">Direzione Intraday</p>
+                <p className="text-2xl font-bold capitalize">{vix.direction}</p>
+              </CardContent>
+            </Card>
+            
+            <Card className={cn(
+              "border-border/50",
+              vix.regime === 'risk-on' ? "bg-primary/10" :
+              vix.regime === 'risk-off' ? "bg-red-500/10" :
+              "bg-yellow-500/10"
+            )}>
+              <CardContent className="p-6 text-center">
+                <Shield className={cn(
+                  "w-8 h-8 mx-auto mb-2",
+                  vix.regime === 'risk-on' ? "text-primary" :
+                  vix.regime === 'risk-off' ? "text-red-400" :
+                  "text-yellow-400"
+                )} />
+                <p className="text-xs text-muted-foreground mb-1">Regime</p>
+                <p className={cn(
+                  "text-2xl font-bold uppercase",
+                  vix.regime === 'risk-on' ? "text-primary" :
+                  vix.regime === 'risk-off' ? "text-red-400" :
+                  "text-yellow-400"
+                )}>
+                  {vix.regime}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* VIX Interpretation */}
+          <Card className="bg-card/80 border-border/50">
+            <CardContent className="p-4">
+              <h4 className="font-medium mb-2">Interpretazione</h4>
+              <p className="text-sm text-muted-foreground">
+                {vix.regime === 'risk-on' && 'VIX sotto 20 indica bassa volatilità attesa. Favorisce strategie mean-reversion sugli indici. Long bias su NQ/S&P più probabile.'}
+                {vix.regime === 'risk-off' && 'VIX sopra 25 indica alta volatilità attesa (fear). Cautela su long risk-on. Favorisce XAU come safe-haven. Ridurre size.'}
+                {vix.regime === 'neutral' && 'VIX in zona neutrale (20-25). Monitorare direzione per conferma. Applicare strategie con cautela e stop stretti.'}
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab C - Livelli Premium */}
+        <TabsContent value="levels" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {Object.entries(assets).map(([symbol, data]) => (
+              <Card key={symbol} className="bg-card/80 border-border/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg flex items-center justify-between">
+                    <span>{symbol}</span>
+                    <span className="text-xl font-bold text-primary">
+                      {data.current.toFixed(symbol === 'EURUSD' ? 5 : 2)}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    {/* Weekly */}
+                    <div className="grid grid-cols-3 gap-2 p-2 bg-secondary/30 rounded">
+                      <span className="text-muted-foreground">Weekly</span>
+                      <span>H: {data.weeklyHigh} ({calcDistancePercent(data.current, data.weeklyHigh)}%)</span>
+                      <span>L: {data.weeklyLow} ({calcDistancePercent(data.current, data.weeklyLow)}%)</span>
+                    </div>
+                    {/* 2-Week */}
+                    <div className="grid grid-cols-3 gap-2 p-2 bg-secondary/30 rounded">
+                      <span className="text-muted-foreground">2-Week</span>
+                      <span>H: {data.twoWeekHigh} ({calcDistancePercent(data.current, data.twoWeekHigh)}%)</span>
+                      <span>L: {data.twoWeekLow} ({calcDistancePercent(data.current, data.twoWeekLow)}%)</span>
+                    </div>
+                    {/* Asia */}
+                    <div className="grid grid-cols-4 gap-2 p-2 bg-secondary/30 rounded">
+                      <span className="text-muted-foreground">Asia</span>
+                      <span>H: {data.asiaHigh}</span>
+                      <span>L: {data.asiaLow}</span>
+                      <span>C: {data.asiaClose}</span>
+                    </div>
+                    {/* Yesterday */}
+                    <div className="grid grid-cols-4 gap-2 p-2 bg-secondary/30 rounded">
+                      <span className="text-muted-foreground">Ieri</span>
+                      <span>H: {data.yesterdayHigh}</span>
+                      <span>L: {data.yesterdayLow}</span>
+                      <span>C: {data.yesterdayClose}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* Tab D - Segnali Oggi */}
+        <TabsContent value="signals" className="space-y-4">
+          {signals.length > 0 ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {signals.map(signal => (
+                <SignalCard key={signal.id} signal={signal} />
+              ))}
+            </div>
+          ) : (
+            <Card className="bg-card/80 border-border/50">
+              <CardContent className="py-12 text-center">
+                <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
+                <p className="text-muted-foreground">Nessun segnale con probabilità ≥55% al momento</p>
+                <p className="text-sm text-muted-foreground mt-1">Attendi formazione setup validi</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Strategy Rules Summary */}
+          <Card className="bg-card/80 border-border/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Regole Operative</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-1">
+              <p>• <strong>1R</strong> = distanza entry-stop | <strong>TP1</strong> = +1.2R | <strong>TP2</strong> = +1.3R (runner)</p>
+              <p>• Max <strong>2 trade/giorno</strong> per asset | Solo se probabilità ≥<strong>55%</strong></p>
+              <p>• Stop a <strong>BE</strong> dopo +0.6R | Chiudi anticipato se prob scende sotto 50%</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab E - Update 2H */}
+        <TabsContent value="updates" className="space-y-4">
+          <Card className="bg-card/80 border-border/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-primary" />
+                Update ogni 2 ore
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {signals.map(signal => (
+                  <div key={signal.id} className="p-3 bg-secondary/30 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold">{signal.asset}</span>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-xs",
+                          signal.status === 'watch' ? "bg-yellow-500/20 text-yellow-400" :
+                          signal.status === 'active' ? "bg-primary/20 text-primary" :
+                          "bg-muted text-muted-foreground"
+                        )}>
+                          {signal.status}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{marketData.lastUpdate}</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Prezzo</p>
+                        <p>{assets[signal.asset]?.current.toFixed(signal.asset === 'EURUSD' ? 5 : 2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">P&L</p>
+                        <p className={signal.pnlR >= 0 ? "text-primary" : "text-red-400"}>
+                          {signal.pnlR >= 0 ? '+' : ''}{signal.pnlR.toFixed(2)}R
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Prob</p>
+                        <p className="flex items-center gap-1">
+                          {signal.probability}%
+                          <Minus className="w-3 h-3 text-muted-foreground" />
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Decisione</p>
+                        <p className="text-primary">Mantieni</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Update Rules */}
+          <Card className="bg-card/80 border-border/50">
+            <CardContent className="p-4 text-sm text-muted-foreground">
+              <h4 className="font-medium text-foreground mb-2">Regole Aggiornamento Probabilità</h4>
+              <ul className="space-y-1">
+                <li>• Se posizione oltre +0.4R e VIX non peggiora → Prob <span className="text-primary">↑</span></li>
+                <li>• Se posizione sotto -0.3R o VIX accelera contro → Prob <span className="text-red-400">↓</span></li>
+                <li>• Se prezzo accetta oltre estremo premium → Prob <span className="text-red-400">↓</span>, preferire uscita</li>
+                <li>• Se profitto ≥+0.6R → Sposta stop a BE</li>
+                <li>• Se prob scende sotto 50% → Chiudi prima dello stop</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
