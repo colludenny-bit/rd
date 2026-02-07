@@ -9,7 +9,7 @@ import { Slider } from '../ui/slider';
 import { Switch } from '../ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
-import { 
+import {
   Brain, Shield, Target, Activity, Zap, TrendingUp, TrendingDown,
   AlertTriangle, CheckCircle, Lock, Unlock, ChevronRight, Clock,
   BarChart3, Flame, Eye, RefreshCw, ArrowUpRight, Info
@@ -25,7 +25,7 @@ const PhaseBadge = ({ phase }) => {
     MAINTENANCE_PLUS: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Killer Mode' }
   };
   const { bg, text, label } = config[phase] || config.ACQUISITION;
-  
+
   return (
     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${bg} ${text}`}>
       {label}
@@ -38,7 +38,7 @@ const ScoreRing = ({ score, label, size = 80, color = 'primary' }) => {
   const radius = (size - 8) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = (score / 100) * circumference;
-  
+
   const colors = {
     primary: 'stroke-primary',
     yellow: 'stroke-yellow-500',
@@ -93,16 +93,15 @@ const TriggerButton = ({ trigger, selected, onToggle }) => {
     AVOIDANCE: Eye
   };
   const Icon = icons[trigger] || AlertTriangle;
-  
+
   return (
     <button
       type="button"
       onClick={() => onToggle(trigger)}
-      className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
-        selected 
-          ? 'bg-red-500/20 border border-red-500/50 text-red-400' 
-          : 'bg-secondary/30 border border-transparent hover:bg-secondary/50 text-muted-foreground'
-      }`}
+      className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${selected
+        ? 'bg-red-500/20 border border-red-500/50 text-red-400'
+        : 'bg-white/5 border border-transparent hover:bg-white/5 text-muted-foreground'
+        }`}
     >
       <Icon className="w-4 h-4" />
       <span className="text-sm">{trigger}</span>
@@ -120,7 +119,7 @@ export default function PsychologyPage() {
     confidence_readiness: 0,
     grace_tokens: 3
   });
-  
+
   // EOD Form State
   const [eodForm, setEodForm] = useState({
     stress: 5,
@@ -147,7 +146,7 @@ export default function PsychologyPage() {
   const toggleTrigger = useCallback((trigger) => {
     setEodForm(prev => ({
       ...prev,
-      triggers: prev.triggers.includes(trigger) 
+      triggers: prev.triggers.includes(trigger)
         ? prev.triggers.filter(t => t !== trigger)
         : [...prev.triggers, trigger]
     }));
@@ -156,7 +155,7 @@ export default function PsychologyPage() {
   const handleSubmitEOD = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       const response = await axios.post(`${API}/psychology/eod`, {
         eod_psych: {
@@ -186,11 +185,11 @@ export default function PsychologyPage() {
         },
         engine_state: engineState
       });
-      
+
       setAnalysisResult(response.data);
       setActiveTab('results');
       toast.success('Analisi EOD completata');
-      
+
       // Update engine state from response
       if (response.data.data_updates) {
         setEngineState(prev => ({
@@ -217,8 +216,8 @@ export default function PsychologyPage() {
   return (
     <div className="space-y-6 fade-in" data-testid="psychology-page">
       {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col md:flex-row md:items-center md:justify-between gap-4"
       >
@@ -231,11 +230,11 @@ export default function PsychologyPage() {
             Shark Mind Engine - Trasforma la psicologia in sistema
           </p>
         </div>
-        
+
         {/* Phase & Level Badge */}
         <div className="flex items-center gap-3">
           <PhaseBadge phase={engineState.phase} />
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg">
             <span className="text-xs text-muted-foreground">Level</span>
             <span className="font-bold text-primary">{engineState.level}</span>
           </div>
@@ -244,7 +243,7 @@ export default function PsychologyPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-secondary/30 p-1 rounded-xl w-full md:w-auto grid grid-cols-4 md:flex">
+        <TabsList className="bg-transparent p-1 gap-1 rounded-xl w-full md:w-auto grid grid-cols-4 md:flex">
           <TabsTrigger value="eod" className="rounded-lg data-[state=active]:bg-primary/20" data-testid="tab-eod">
             <Activity className="w-4 h-4 mr-2 hidden md:inline" />
             EOD
@@ -286,14 +285,14 @@ export default function PsychologyPage() {
                     </div>
                     <Slider
                       value={[eodForm.stress]}
-                      onValueChange={([v]) => setEodForm({...eodForm, stress: v})}
+                      onValueChange={([v]) => setEodForm({ ...eodForm, stress: v })}
                       max={10}
                       min={1}
                       step={1}
                       className="py-2"
                     />
                   </div>
-                  
+
                   {/* Focus */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
@@ -304,14 +303,14 @@ export default function PsychologyPage() {
                     </div>
                     <Slider
                       value={[eodForm.focus]}
-                      onValueChange={([v]) => setEodForm({...eodForm, focus: v})}
+                      onValueChange={([v]) => setEodForm({ ...eodForm, focus: v })}
                       max={10}
                       min={1}
                       step={1}
                       className="py-2"
                     />
                   </div>
-                  
+
                   {/* Energy */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
@@ -322,14 +321,14 @@ export default function PsychologyPage() {
                     </div>
                     <Slider
                       value={[eodForm.energy]}
-                      onValueChange={([v]) => setEodForm({...eodForm, energy: v})}
+                      onValueChange={([v]) => setEodForm({ ...eodForm, energy: v })}
                       max={10}
                       min={1}
                       step={1}
                       className="py-2"
                     />
                   </div>
-                  
+
                   {/* Physical Tension */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
@@ -340,7 +339,7 @@ export default function PsychologyPage() {
                     </div>
                     <Slider
                       value={[eodForm.physical_tension]}
-                      onValueChange={([v]) => setEodForm({...eodForm, physical_tension: v})}
+                      onValueChange={([v]) => setEodForm({ ...eodForm, physical_tension: v })}
                       max={10}
                       min={1}
                       step={1}
@@ -348,9 +347,9 @@ export default function PsychologyPage() {
                     />
                   </div>
                 </div>
-                
+
                 {/* Urge to Trade - Full Width */}
-                <div className="space-y-3 p-4 bg-secondary/30 rounded-xl">
+                <div className="space-y-3 p-4 bg-white/5 rounded-xl">
                   <div className="flex justify-between items-center">
                     <Label className="text-sm flex items-center gap-2">
                       <Flame className="w-4 h-4 text-orange-400" />
@@ -362,7 +361,7 @@ export default function PsychologyPage() {
                   </div>
                   <Slider
                     value={[eodForm.urge_to_trade]}
-                    onValueChange={([v]) => setEodForm({...eodForm, urge_to_trade: v})}
+                    onValueChange={([v]) => setEodForm({ ...eodForm, urge_to_trade: v })}
                     max={10}
                     min={0}
                     step={1}
@@ -389,14 +388,14 @@ export default function PsychologyPage() {
                     { key: 'breaks_taken', label: 'Pause Effettuate', icon: Clock },
                     { key: 'mindful_reset_used', label: 'Reset Mindful Usato', icon: RefreshCw }
                   ].map(({ key, label, icon: Icon }) => (
-                    <div key={key} className="flex items-center justify-between p-3 bg-secondary/30 rounded-xl">
+                    <div key={key} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
                       <div className="flex items-center gap-3">
                         <Icon className="w-4 h-4 text-muted-foreground" />
                         <span className="text-sm">{label}</span>
                       </div>
                       <Switch
                         checked={eodForm[key]}
-                        onCheckedChange={(checked) => setEodForm({...eodForm, [key]: checked})}
+                        onCheckedChange={(checked) => setEodForm({ ...eodForm, [key]: checked })}
                       />
                     </div>
                   ))}
@@ -440,8 +439,8 @@ export default function PsychologyPage() {
                     <Label className="text-xs text-muted-foreground">Tipo Sessione</Label>
                     <select
                       value={eodForm.session_type}
-                      onChange={(e) => setEodForm({...eodForm, session_type: e.target.value})}
-                      className="w-full bg-secondary/50 border-0 rounded-lg px-3 py-2 text-sm"
+                      onChange={(e) => setEodForm({ ...eodForm, session_type: e.target.value })}
+                      className="w-full bg-white/5 border-0 rounded-lg px-3 py-2 text-sm"
                     >
                       <option value="trade_day">Trade Day</option>
                       <option value="no_trade_day">No Trade Day</option>
@@ -452,8 +451,8 @@ export default function PsychologyPage() {
                     <input
                       type="number"
                       value={eodForm.pnl}
-                      onChange={(e) => setEodForm({...eodForm, pnl: parseFloat(e.target.value) || 0})}
-                      className="w-full bg-secondary/50 border-0 rounded-lg px-3 py-2 text-sm"
+                      onChange={(e) => setEodForm({ ...eodForm, pnl: parseFloat(e.target.value) || 0 })}
+                      className="w-full bg-white/5 border-0 rounded-lg px-3 py-2 text-sm"
                       step="0.01"
                     />
                   </div>
@@ -462,8 +461,8 @@ export default function PsychologyPage() {
                     <input
                       type="number"
                       value={eodForm.planned_trades}
-                      onChange={(e) => setEodForm({...eodForm, planned_trades: parseInt(e.target.value) || 0})}
-                      className="w-full bg-secondary/50 border-0 rounded-lg px-3 py-2 text-sm"
+                      onChange={(e) => setEodForm({ ...eodForm, planned_trades: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-white/5 border-0 rounded-lg px-3 py-2 text-sm"
                       min="0"
                     />
                   </div>
@@ -472,8 +471,8 @@ export default function PsychologyPage() {
                     <input
                       type="number"
                       value={eodForm.unplanned_trades}
-                      onChange={(e) => setEodForm({...eodForm, unplanned_trades: parseInt(e.target.value) || 0})}
-                      className="w-full bg-secondary/50 border-0 rounded-lg px-3 py-2 text-sm"
+                      onChange={(e) => setEodForm({ ...eodForm, unplanned_trades: parseInt(e.target.value) || 0 })}
+                      className="w-full bg-white/5 border-0 rounded-lg px-3 py-2 text-sm"
                       min="0"
                     />
                   </div>
@@ -489,16 +488,16 @@ export default function PsychologyPage() {
               <CardContent>
                 <Textarea
                   value={eodForm.free_note}
-                  onChange={(e) => setEodForm({...eodForm, free_note: e.target.value})}
+                  onChange={(e) => setEodForm({ ...eodForm, free_note: e.target.value })}
                   placeholder="Cosa ha influenzato la tua giornata? Qualcosa da segnalare?"
-                  className="bg-secondary/30 border-0 min-h-[100px] resize-none"
+                  className="bg-white/5 border-0 min-h-[100px] resize-none"
                 />
               </CardContent>
             </Card>
 
             {/* Submit Button */}
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={loading}
               className="w-full h-12 text-base font-semibold rounded-xl bg-primary hover:bg-primary/90"
               data-testid="submit-eod"
@@ -533,9 +532,9 @@ export default function PsychologyPage() {
                   <CardContent className="p-6">
                     <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                       <div className="flex items-center gap-6">
-                        <ScoreRing 
-                          score={analysisResult.scores?.shark_score_0_100 || 0} 
-                          label="Shark Score" 
+                        <ScoreRing
+                          score={analysisResult.scores?.shark_score_0_100 || 0}
+                          label="Shark Score"
                           size={100}
                           color="primary"
                         />
@@ -545,30 +544,30 @@ export default function PsychologyPage() {
                           <PhaseBadge phase={analysisResult.phase} />
                         </div>
                       </div>
-                      
+
                       {/* Sub-scores */}
                       <div className="flex items-center gap-4">
-                        <ScoreRing 
-                          score={analysisResult.scores?.discipline_0_100 || 0} 
-                          label="Disciplina" 
+                        <ScoreRing
+                          score={analysisResult.scores?.discipline_0_100 || 0}
+                          label="Disciplina"
                           size={70}
                           color="blue"
                         />
-                        <ScoreRing 
-                          score={analysisResult.scores?.clarity_0_100 || 0} 
-                          label="Chiarezza" 
+                        <ScoreRing
+                          score={analysisResult.scores?.clarity_0_100 || 0}
+                          label="Chiarezza"
                           size={70}
                           color="emerald"
                         />
-                        <ScoreRing 
-                          score={analysisResult.scores?.emotional_stability_0_100 || 0} 
-                          label="Stabilità" 
+                        <ScoreRing
+                          score={analysisResult.scores?.emotional_stability_0_100 || 0}
+                          label="Stabilità"
                           size={70}
                           color="yellow"
                         />
-                        <ScoreRing 
-                          score={100 - (analysisResult.scores?.compulsion_risk_0_100 || 0)} 
-                          label="Controllo" 
+                        <ScoreRing
+                          score={100 - (analysisResult.scores?.compulsion_risk_0_100 || 0)}
+                          label="Controllo"
                           size={70}
                           color={analysisResult.scores?.compulsion_risk_0_100 > 50 ? 'red' : 'emerald'}
                         />
@@ -617,11 +616,10 @@ export default function PsychologyPage() {
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Target className="w-5 h-5 text-amber-400" />
                         Protocollo Domani
-                        <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
-                          analysisResult.tomorrow_protocol.mode === 'TILT_LOCK' ? 'bg-red-500/20 text-red-400' :
+                        <span className={`ml-2 px-2 py-0.5 rounded text-xs ${analysisResult.tomorrow_protocol.mode === 'TILT_LOCK' ? 'bg-red-500/20 text-red-400' :
                           analysisResult.tomorrow_protocol.mode === 'A_PLUS_ONLY' ? 'bg-amber-500/20 text-amber-400' :
-                          'bg-emerald-500/20 text-emerald-400'
-                        }`}>
+                            'bg-emerald-500/20 text-emerald-400'
+                          }`}>
                           {analysisResult.tomorrow_protocol.mode}
                         </span>
                       </CardTitle>
@@ -631,18 +629,18 @@ export default function PsychologyPage() {
                       <div className="p-4 bg-primary/10 rounded-xl border border-primary/30">
                         <p className="font-mono text-sm">{analysisResult.tomorrow_protocol.micro_rule_if_then}</p>
                       </div>
-                      
+
                       {/* Constraints */}
                       {analysisResult.tomorrow_protocol.constraints && (
                         <div className="flex flex-wrap gap-3">
                           {analysisResult.tomorrow_protocol.constraints.max_trades !== undefined && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg">
                               <Lock className="w-4 h-4 text-muted-foreground" />
                               <span className="text-sm">Max {analysisResult.tomorrow_protocol.constraints.max_trades} trade</span>
                             </div>
                           )}
                           {analysisResult.tomorrow_protocol.constraints.timebox_minutes > 0 && (
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/50 rounded-lg">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-lg">
                               <Clock className="w-4 h-4 text-muted-foreground" />
                               <span className="text-sm">Timebox {analysisResult.tomorrow_protocol.constraints.timebox_minutes}min</span>
                             </div>
@@ -655,7 +653,7 @@ export default function PsychologyPage() {
                           )}
                         </div>
                       )}
-                      
+
                       {/* Reset Steps */}
                       {analysisResult.tomorrow_protocol.reset_steps?.length > 0 && (
                         <div className="space-y-2">
@@ -690,7 +688,7 @@ export default function PsychologyPage() {
                             </span>
                           </div>
                           <p className="text-sm">{analysisResult.readiness.message_to_trader}</p>
-                          
+
                           {analysisResult.readiness.promotion?.suggested && (
                             <div className="mt-3 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
                               <p className="text-sm text-emerald-400 font-medium">
@@ -716,27 +714,25 @@ export default function PsychologyPage() {
                     <CardContent>
                       <div className="space-y-3">
                         {analysisResult.detected_patterns.map((pattern, i) => (
-                          <div 
+                          <div
                             key={i}
-                            className={`p-3 rounded-xl border ${
-                              pattern.severity === 'high' ? 'bg-red-500/10 border-red-500/30' :
+                            className={`p-3 rounded-xl border ${pattern.severity === 'high' ? 'bg-red-500/10 border-red-500/30' :
                               pattern.severity === 'medium' ? 'bg-amber-500/10 border-amber-500/30' :
-                              'bg-secondary/30 border-border/50'
-                            }`}
+                                'bg-white/5 border-border/50'
+                              }`}
                           >
                             <div className="flex items-center justify-between mb-2">
                               <span className="font-semibold text-sm">{pattern.pattern_id.replace('_', ' ')}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded ${
-                                pattern.severity === 'high' ? 'bg-red-500/20 text-red-400' :
+                              <span className={`text-xs px-2 py-0.5 rounded ${pattern.severity === 'high' ? 'bg-red-500/20 text-red-400' :
                                 pattern.severity === 'medium' ? 'bg-amber-500/20 text-amber-400' :
-                                'bg-secondary/50 text-muted-foreground'
-                              }`}>
+                                  'bg-white/5 text-muted-foreground'
+                                }`}>
                                 {pattern.severity}
                               </span>
                             </div>
                             <div className="flex flex-wrap gap-1">
                               {pattern.evidence?.map((ev, j) => (
-                                <span key={j} className="text-xs px-2 py-0.5 bg-secondary/50 rounded">
+                                <span key={j} className="text-xs px-2 py-0.5 bg-white/5 rounded">
                                   {ev}
                                 </span>
                               ))}
@@ -756,8 +752,8 @@ export default function PsychologyPage() {
                   <p className="text-muted-foreground text-sm">
                     Completa il form EOD per ricevere l'analisi Shark Mind
                   </p>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="mt-4"
                     onClick={() => setActiveTab('eod')}
                   >
@@ -782,8 +778,8 @@ export default function PsychologyPage() {
                 <PhaseBadge phase={engineState.phase} />
                 <p className="text-sm text-muted-foreground mt-2">
                   {engineState.phase === 'ACQUISITION' ? 'Costruisci abitudini' :
-                   engineState.phase === 'MAINTENANCE' ? 'Proteggi il capitale' :
-                   'Massima performance'}
+                    engineState.phase === 'MAINTENANCE' ? 'Proteggi il capitale' :
+                      'Massima performance'}
                 </p>
               </CardContent>
             </Card>
@@ -791,9 +787,9 @@ export default function PsychologyPage() {
             {/* Readiness */}
             <Card className="bg-card/60 backdrop-blur border-border/50">
               <CardContent className="p-6 text-center">
-                <ScoreRing 
-                  score={engineState.confidence_readiness} 
-                  label="" 
+                <ScoreRing
+                  score={engineState.confidence_readiness}
+                  label=""
                   size={80}
                   color={engineState.confidence_readiness >= 75 ? 'emerald' : 'yellow'}
                 />
@@ -811,11 +807,10 @@ export default function PsychologyPage() {
                   {[...Array(3)].map((_, i) => (
                     <div
                       key={i}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        i < engineState.grace_tokens 
-                          ? 'bg-emerald-500/20 text-emerald-400' 
-                          : 'bg-secondary/30 text-muted-foreground'
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center ${i < engineState.grace_tokens
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-white/5 text-muted-foreground'
+                        }`}
                     >
                       {i < engineState.grace_tokens ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                     </div>
@@ -837,12 +832,12 @@ export default function PsychologyPage() {
                   <div>
                     <h3 className="font-semibold mb-1">Richiedi Promozione</h3>
                     <p className="text-sm text-muted-foreground">
-                      {engineState.confidence_readiness >= 75 
+                      {engineState.confidence_readiness >= 75
                         ? 'Sei pronto per avanzare al livello successivo'
                         : `Raggiungi ${75}% readiness per sbloccare (attuale: ${engineState.confidence_readiness}%)`}
                     </p>
                   </div>
-                  <Button 
+                  <Button
                     onClick={requestPromotion}
                     disabled={engineState.confidence_readiness < 75}
                     className="shrink-0"
@@ -870,18 +865,16 @@ export default function PsychologyPage() {
                   { phase: 'MAINTENANCE', desc: 'Severo. Proteggi il capitale psicologico. Penalità dure su errori critici.' },
                   { phase: 'MAINTENANCE_PLUS', desc: 'Killer Mode. Standard massimi. Controllo totale prima di operare.' }
                 ].map(({ phase, desc }, i) => (
-                  <div 
+                  <div
                     key={phase}
-                    className={`p-4 rounded-xl border ${
-                      engineState.phase === phase 
-                        ? 'bg-primary/10 border-primary/30' 
-                        : 'bg-secondary/20 border-transparent'
-                    }`}
+                    className={`p-4 rounded-xl border ${engineState.phase === phase
+                      ? 'bg-primary/10 border-primary/30'
+                      : 'bg-secondary/20 border-transparent'
+                      }`}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        engineState.phase === phase ? 'bg-primary text-white' : 'bg-secondary/50'
-                      }`}>
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${engineState.phase === phase ? 'bg-primary text-white' : 'bg-white/5'
+                        }`}>
                         {i + 1}
                       </span>
                       <PhaseBadge phase={phase} />
@@ -959,25 +952,25 @@ export default function PsychologyPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-3 bg-secondary/30 rounded-lg">
+                <div className="p-3 bg-white/5 rounded-lg">
                   <h5 className="font-medium mb-1">Process &gt; Outcome</h5>
                   <p className="text-xs text-muted-foreground">
                     Valuta disciplina, limiti, qualità decisionale. NON il P&L.
                   </p>
                 </div>
-                <div className="p-3 bg-secondary/30 rounded-lg">
+                <div className="p-3 bg-white/5 rounded-lg">
                   <h5 className="font-medium mb-1">1 Leva Sola</h5>
                   <p className="text-xs text-muted-foreground">
                     Una micro-regola operativa per domani. Testabile, piccola, specifica.
                   </p>
                 </div>
-                <div className="p-3 bg-secondary/30 rounded-lg">
+                <div className="p-3 bg-white/5 rounded-lg">
                   <h5 className="font-medium mb-1">Progressione Auto-guidata</h5>
                   <p className="text-xs text-muted-foreground">
                     Da permissivo a severo quando la stabilità è reale.
                   </p>
                 </div>
-                <div className="p-3 bg-secondary/30 rounded-lg">
+                <div className="p-3 bg-white/5 rounded-lg">
                   <h5 className="font-medium mb-1">Anti-Tilt & Overtrading</h5>
                   <p className="text-xs text-muted-foreground">
                     Priorità: ridurre superficie di errore domani.

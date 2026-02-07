@@ -78,7 +78,7 @@ const AIResponse = ({ response }) => (
 
 // Entry Card Component
 const EntryCard = ({ entry }) => (
-  <Card className="bg-secondary/30 border-border/50">
+  <Card className="bg-white/5 border-border/50">
     <CardContent className="p-4">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-muted-foreground">
@@ -288,7 +288,7 @@ export default function JournalPage() {
                     value={formData.pnl}
                     onChange={(e) => setFormData({...formData, pnl: e.target.value})}
                     placeholder="Es: +2R, -$150, BE"
-                    className="w-full p-2 bg-secondary/50 border border-border rounded-lg"
+                    className="w-full p-2 bg-white/5 border border-border rounded-lg"
                   />
                 </div>
               )}

@@ -10,28 +10,29 @@ import { Slider } from '../ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
-import { 
-  Dices, Play, TrendingUp, TrendingDown, AlertTriangle, 
+import {
+  Dices, Play, TrendingUp, TrendingDown, AlertTriangle,
   BarChart3, Target, Percent, DollarSign, Hash, Download,
-  Gauge, ArrowDownRight, Calculator
+  Gauge, ArrowDownRight, Calculator, FileText
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart, ReferenceLine } from 'recharts';
+import jsPDF from 'jspdf';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Animated Dice Component
 const AnimatedDice = ({ isAnimating }) => {
   const dots = [
-    [[1,1]], // 1
-    [[0,0], [2,2]], // 2
-    [[0,0], [1,1], [2,2]], // 3
-    [[0,0], [0,2], [2,0], [2,2]], // 4
-    [[0,0], [0,2], [1,1], [2,0], [2,2]], // 5
-    [[0,0], [0,2], [1,0], [1,2], [2,0], [2,2]], // 6
+    [[1, 1]], // 1
+    [[0, 0], [2, 2]], // 2
+    [[0, 0], [1, 1], [2, 2]], // 3
+    [[0, 0], [0, 2], [2, 0], [2, 2]], // 4
+    [[0, 0], [0, 2], [1, 1], [2, 0], [2, 2]], // 5
+    [[0, 0], [0, 2], [1, 0], [1, 2], [2, 0], [2, 2]], // 6
   ];
-  
+
   const [value, setValue] = useState(5);
-  
+
   useEffect(() => {
     if (isAnimating) {
       const interval = setInterval(() => {
@@ -40,7 +41,7 @@ const AnimatedDice = ({ isAnimating }) => {
       return () => clearInterval(interval);
     }
   }, [isAnimating]);
-  
+
   return (
     <motion.div
       className="w-20 h-20 bg-gradient-to-br from-primary to-primary/50 rounded-xl p-2 relative shadow-2xl"
@@ -52,12 +53,12 @@ const AnimatedDice = ({ isAnimating }) => {
       transition={{ duration: 0.5, repeat: isAnimating ? Infinity : 0 }}
     >
       <div className="w-full h-full grid grid-cols-3 grid-rows-3 gap-1 p-1">
-        {[0, 1, 2].map(row => 
+        {[0, 1, 2].map(row =>
           [0, 1, 2].map(col => {
             const hasDot = dots[value].some(([r, c]) => r === row && c === col);
             return (
-              <div 
-                key={`${row}-${col}`} 
+              <div
+                key={`${row}-${col}`}
                 className={cn(
                   "rounded-full transition-all duration-100",
                   hasDot ? "bg-white shadow-inner" : "bg-transparent"
@@ -88,9 +89,9 @@ const LoadingAnimation = ({ isLoading, progress }) => {
     }
     return [];
   }, [isLoading, progress > 30]);
-  
+
   if (!isLoading) return null;
-  
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -103,19 +104,19 @@ const LoadingAnimation = ({ isLoading, progress }) => {
         <AnimatedDice isAnimating={true} />
         <AnimatedDice isAnimating={true} />
       </div>
-      
+
       <h3 className="text-xl font-bold text-primary mb-2">Karion sta simulando...</h3>
       <p className="text-muted-foreground text-sm mb-6">Calcolando 10.000 scenari di equity</p>
-      
+
       {/* Progress Bar */}
       <div className="w-64 h-2 bg-secondary rounded-full overflow-hidden mb-8">
-        <motion.div 
+        <motion.div
           className="h-full bg-gradient-to-r from-primary to-emerald-500"
           animate={{ width: `${progress}%` }}
           transition={{ duration: 0.3 }}
         />
       </div>
-      
+
       {/* Equity Lines Preview */}
       {progress > 30 && (
         <motion.div
@@ -145,7 +146,7 @@ const LoadingAnimation = ({ isLoading, progress }) => {
   );
 };
 
-// Stat Card Component
+// Stat Card Component with improved overflow handling
 const StatCard = ({ icon: Icon, label, value, subValue, color = 'primary', format = 'default' }) => {
   const colorClasses = {
     primary: 'text-primary',
@@ -153,22 +154,40 @@ const StatCard = ({ icon: Icon, label, value, subValue, color = 'primary', forma
     red: 'text-red-400',
     yellow: 'text-yellow-400'
   };
-  
+
   let displayValue = value;
+  let fullValue = value;
   if (format === 'currency') {
-    displayValue = typeof value === 'number' ? `$${value.toLocaleString()}` : value;
+    fullValue = typeof value === 'number' ? `$${value.toLocaleString()}` : value;
+    // Compact format for large numbers
+    if (typeof value === 'number' && value >= 1000000) {
+      displayValue = `$${(value / 1000000).toFixed(2)}M`;
+    } else if (typeof value === 'number' && value >= 10000) {
+      displayValue = `$${(value / 1000).toFixed(1)}K`;
+    } else {
+      displayValue = fullValue;
+    }
   } else if (format === 'percent') {
     displayValue = typeof value === 'number' ? `${value.toFixed(2)}%` : value;
+    fullValue = displayValue;
   }
-  
+
   return (
-    <div className="p-4 bg-secondary/30 rounded-xl h-full">
+    <div className="p-3 md:p-4 bg-white/5 rounded-xl h-full overflow-hidden">
       <div className="flex items-start justify-between mb-2">
-        <Icon className={cn("w-5 h-5", colorClasses[color])} />
-        {subValue && <span className="text-xs text-muted-foreground">{subValue}</span>}
+        <Icon className={cn("w-4 h-4 md:w-5 md:h-5 flex-shrink-0", colorClasses[color])} />
+        {subValue && <span className="text-[10px] md:text-xs text-muted-foreground truncate ml-1">{subValue}</span>}
       </div>
-      <p className={cn("text-2xl font-bold truncate", colorClasses[color])}>{displayValue}</p>
-      <p className="text-xs text-muted-foreground mt-1">{label}</p>
+      <p
+        className={cn(
+          "text-lg md:text-xl lg:text-2xl font-bold truncate cursor-default",
+          colorClasses[color]
+        )}
+        title={fullValue}
+      >
+        {displayValue}
+      </p>
+      <p className="text-[10px] md:text-xs text-muted-foreground mt-1 truncate">{label}</p>
     </div>
   );
 };
@@ -212,19 +231,19 @@ export default function MonteCarloPage() {
   const runSimulation = async () => {
     setLoading(true);
     setLoadingProgress(0);
-    
+
     // Simulate progress
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => Math.min(prev + Math.random() * 15, 95));
     }, 200);
-    
+
     try {
       const res = await axios.post(`${API}/montecarlo/simulate`, {
         ...params,
         win_rate: params.win_rate / 100,
         risk_per_trade: params.risk_per_trade / 100
       });
-      
+
       setLoadingProgress(100);
       setTimeout(() => {
         setResults(res.data);
@@ -242,16 +261,16 @@ export default function MonteCarloPage() {
   // Calculate additional metrics from results
   const calculateMetrics = () => {
     if (!results) return {};
-    
+
     const expectancy = (params.win_rate / 100 * params.avg_win) - ((1 - params.win_rate / 100) * params.avg_loss);
     const profitFactor = (params.win_rate / 100 * params.avg_win) / ((1 - params.win_rate / 100) * params.avg_loss);
     const kellyPercent = ((params.win_rate / 100 * params.avg_win) - (1 - params.win_rate / 100)) / params.avg_win * 100;
-    
+
     return {
       expectancy: expectancy.toFixed(3),
       profitFactor: profitFactor.toFixed(2),
       kellyPercent: Math.max(0, kellyPercent).toFixed(2),
-      avgReturn: results.avg_final_capital ? 
+      avgReturn: results.avg_final_capital ?
         ((results.avg_final_capital - params.initial_capital) / params.initial_capital * 100).toFixed(2) : 0,
       medianReturn: results.median_final_capital ?
         ((results.median_final_capital - params.initial_capital) / params.initial_capital * 100).toFixed(2) : 0
@@ -269,9 +288,123 @@ export default function MonteCarloPage() {
   })) || [];
 
   const curveColors = [
-    '#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', 
+    '#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444',
     '#06b6d4', '#ec4899', '#14b8a6', '#f97316', '#6366f1'
   ];
+
+  // PDF Export Function
+  const exportPDF = () => {
+    if (!results) {
+      toast.error('Prima lancia la simulazione!');
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    let y = 20;
+
+    // Helper function
+    const addLine = (text, x = 15, fontSize = 10, isBold = false) => {
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', isBold ? 'bold' : 'normal');
+      doc.text(text, x, y);
+      y += fontSize * 0.5 + 2;
+    };
+
+    const addSection = (title) => {
+      y += 5;
+      doc.setDrawColor(34, 197, 94);
+      doc.setLineWidth(0.5);
+      doc.line(15, y, pageWidth - 15, y);
+      y += 8;
+      addLine(title, 15, 14, true);
+      y += 3;
+    };
+
+    // Header
+    doc.setFillColor(10, 10, 10);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setTextColor(34, 197, 94);
+    doc.setFontSize(24);
+    doc.setFont('helvetica', 'bold');
+    doc.text('KARION', pageWidth / 2, 20, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setTextColor(150, 150, 150);
+    doc.text('Monte Carlo Simulation Report', pageWidth / 2, 30, { align: 'center' });
+
+    y = 50;
+    doc.setTextColor(0, 0, 0);
+
+    // Strategy Parameters Section
+    addSection('📊 Strategy Parameters');
+    addLine(`Win Rate: ${params.win_rate}%`);
+    addLine(`Average Win: ${params.avg_win}R`);
+    addLine(`Average Loss: ${params.avg_loss}R`);
+    addLine(`Risk per Trade: ${params.risk_per_trade}%`);
+    addLine(`Initial Capital: $${params.initial_capital.toLocaleString()}`);
+    addLine(`Number of Trades: ${params.num_trades}`);
+
+    // Overview Results Section
+    addSection('📈 Simulation Results (10,000 scenarios)');
+    addLine(`Average Final Capital: $${results.avg_final_capital?.toLocaleString() || 'N/A'}`);
+    addLine(`Median Final Capital: $${results.median_final_capital?.toLocaleString() || 'N/A'}`);
+    addLine(`Best Case (Top 1%): $${results.max_final_capital?.toLocaleString() || 'N/A'}`);
+    addLine(`Worst Case (Bottom 1%): $${results.min_final_capital?.toLocaleString() || 'N/A'}`);
+    addLine(`Ruin Probability: ${results.bankruptcy_rate?.toFixed(2) || 0}%`);
+    addLine(`Max Drawdown (avg): ${results.avg_max_drawdown?.toFixed(2) || 0}%`);
+
+    // Key Metrics Section
+    addSection('🎯 Key Metrics');
+    addLine(`Expectancy: ${metrics.expectancy}R`);
+    addLine(`Profit Factor: ${metrics.profitFactor}`);
+    addLine(`Kelly Criterion: ${metrics.kellyPercent}%`);
+    addLine(`Average ROI: ${metrics.avgReturn}%`);
+    addLine(`Median ROI: ${metrics.medianReturn}%`);
+    addLine(`Risk/Reward Ratio: ${(params.avg_win / params.avg_loss).toFixed(2)}`);
+
+    // AI Analysis Section
+    addSection('🤖 AI Analysis');
+    const analysisLines = [];
+
+    if (parseFloat(metrics.expectancy) > 0.3) {
+      analysisLines.push('✅ Strategia con edge positivo significativo');
+    } else if (parseFloat(metrics.expectancy) > 0) {
+      analysisLines.push('⚠️ Edge positivo ma marginale, aumentare sample size');
+    } else {
+      analysisLines.push('❌ Edge negativo, rivedere strategia');
+    }
+
+    if (results.bankruptcy_rate < 5) {
+      analysisLines.push('✅ Rischio di rovina molto basso');
+    } else if (results.bankruptcy_rate < 15) {
+      analysisLines.push('⚠️ Rischio moderato, considerare riduzione size');
+    } else {
+      analysisLines.push('❌ Rischio elevato, parametri aggressivi');
+    }
+
+    if (parseFloat(metrics.profitFactor) > 1.5) {
+      analysisLines.push('✅ Profit factor eccellente');
+    } else if (parseFloat(metrics.profitFactor) > 1) {
+      analysisLines.push('⚠️ Profit factor accettabile');
+    }
+
+    const kellySuggested = Math.min(parseFloat(metrics.kellyPercent) / 2, 5);
+    analysisLines.push(`💡 Position sizing suggerito: ${kellySuggested.toFixed(1)}% (Half-Kelly)`);
+
+    analysisLines.forEach(line => addLine(line));
+
+    // Footer
+    y = doc.internal.pageSize.getHeight() - 20;
+    doc.setFontSize(8);
+    doc.setTextColor(128, 128, 128);
+    doc.text(`Generated by Karion Trading OS • ${new Date().toLocaleDateString('it-IT')} ${new Date().toLocaleTimeString('it-IT')}`, pageWidth / 2, y, { align: 'center' });
+
+    // Save
+    const filename = `karion_montecarlo_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
+    toast.success(`PDF esportato: ${filename}`);
+  };
+
 
   return (
     <div className="space-y-6 fade-in" data-testid="montecarlo-page">
@@ -292,7 +425,7 @@ export default function MonteCarloPage() {
           )}
         </h1>
         <p className="text-muted-foreground mt-1">
-          {importedStrategy 
+          {importedStrategy
             ? `Simulazione per strategia: ${importedStrategy.name}`
             : 'Analisi probabilistica con 10.000 scenari'
           }
@@ -317,8 +450,8 @@ export default function MonteCarloPage() {
                   <Input
                     type="number"
                     value={params.win_rate}
-                    onChange={(e) => setParams({...params, win_rate: parseFloat(e.target.value) || 0})}
-                    className="w-20 h-8 text-sm bg-secondary/50 text-right"
+                    onChange={(e) => setParams({ ...params, win_rate: parseFloat(e.target.value) || 0 })}
+                    className="w-20 h-8 text-sm bg-white/5 text-right"
                     step={0.1}
                     min={1}
                     max={99}
@@ -328,7 +461,7 @@ export default function MonteCarloPage() {
               </div>
               <Slider
                 value={[params.win_rate]}
-                onValueChange={([v]) => setParams({...params, win_rate: v})}
+                onValueChange={([v]) => setParams({ ...params, win_rate: v })}
                 max={90}
                 min={10}
                 step={0.1}
@@ -342,10 +475,10 @@ export default function MonteCarloPage() {
                 <Input
                   type="number"
                   value={params.avg_win}
-                  onChange={(e) => setParams({...params, avg_win: parseFloat(e.target.value) || 0})}
+                  onChange={(e) => setParams({ ...params, avg_win: parseFloat(e.target.value) || 0 })}
                   step={0.1}
                   min={0.1}
-                  className="bg-secondary/50"
+                  className="bg-white/5"
                 />
               </div>
               <div className="space-y-2">
@@ -353,10 +486,10 @@ export default function MonteCarloPage() {
                 <Input
                   type="number"
                   value={params.avg_loss}
-                  onChange={(e) => setParams({...params, avg_loss: parseFloat(e.target.value) || 0})}
+                  onChange={(e) => setParams({ ...params, avg_loss: parseFloat(e.target.value) || 0 })}
                   step={0.1}
                   min={0.1}
-                  className="bg-secondary/50"
+                  className="bg-white/5"
                 />
               </div>
             </div>
@@ -369,8 +502,8 @@ export default function MonteCarloPage() {
                   <Input
                     type="number"
                     value={params.risk_per_trade}
-                    onChange={(e) => setParams({...params, risk_per_trade: parseFloat(e.target.value) || 0})}
-                    className="w-24 h-8 text-sm bg-secondary/50 text-right"
+                    onChange={(e) => setParams({ ...params, risk_per_trade: parseFloat(e.target.value) || 0 })}
+                    className="w-24 h-8 text-sm bg-white/5 text-right"
                     step={0.01}
                     min={0.01}
                     max={20}
@@ -380,7 +513,7 @@ export default function MonteCarloPage() {
               </div>
               <Slider
                 value={[params.risk_per_trade * 10]}
-                onValueChange={([v]) => setParams({...params, risk_per_trade: v / 10})}
+                onValueChange={([v]) => setParams({ ...params, risk_per_trade: v / 10 })}
                 max={100}
                 min={0.1}
                 step={0.1}
@@ -398,8 +531,8 @@ export default function MonteCarloPage() {
                 <Input
                   type="number"
                   value={params.initial_capital}
-                  onChange={(e) => setParams({...params, initial_capital: parseFloat(e.target.value) || 0})}
-                  className="bg-secondary/50 pl-9"
+                  onChange={(e) => setParams({ ...params, initial_capital: parseFloat(e.target.value) || 0 })}
+                  className="bg-white/5 pl-9"
                 />
               </div>
             </div>
@@ -412,14 +545,14 @@ export default function MonteCarloPage() {
                 <Input
                   type="number"
                   value={params.num_trades}
-                  onChange={(e) => setParams({...params, num_trades: parseInt(e.target.value) || 0})}
-                  className="bg-secondary/50 pl-9"
+                  onChange={(e) => setParams({ ...params, num_trades: parseInt(e.target.value) || 0 })}
+                  className="bg-white/5 pl-9"
                 />
               </div>
             </div>
 
             {/* Run Button */}
-            <Button 
+            <Button
               onClick={runSimulation}
               disabled={loading}
               className="w-full rounded-xl bg-gradient-to-r from-primary to-emerald-500 hover:from-primary/90 hover:to-emerald-500/90"
@@ -440,8 +573,8 @@ export default function MonteCarloPage() {
                 Risultati Simulazione
               </CardTitle>
               {results && (
-                <Button variant="outline" size="sm" className="text-xs">
-                  <Download className="w-3 h-3 mr-1" /> Export
+                <Button onClick={exportPDF} variant="outline" size="sm" className="text-xs">
+                  <FileText className="w-3 h-3 mr-1" /> Export PDF
                 </Button>
               )}
             </div>
@@ -449,7 +582,7 @@ export default function MonteCarloPage() {
           <CardContent>
             {results ? (
               <Tabs defaultValue="overview" className="space-y-4">
-                <TabsList className="bg-secondary/50 p-1 rounded-xl">
+                <TabsList className="bg-transparent p-1 gap-1 rounded-xl">
                   <TabsTrigger value="overview" className="text-xs rounded-lg">Overview</TabsTrigger>
                   <TabsTrigger value="chart" className="text-xs rounded-lg">Equity Curves</TabsTrigger>
                   <TabsTrigger value="metrics" className="text-xs rounded-lg">Key Metrics</TabsTrigger>
@@ -458,32 +591,32 @@ export default function MonteCarloPage() {
                 {/* Overview Tab */}
                 <TabsContent value="overview" className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard 
-                      icon={TrendingUp} 
-                      label="Media Finale" 
-                      value={results.avg_final_capital} 
+                    <StatCard
+                      icon={TrendingUp}
+                      label="Media Finale"
+                      value={results.avg_final_capital}
                       format="currency"
                       color="green"
                     />
-                    <StatCard 
-                      icon={Target} 
-                      label="Mediana Finale" 
-                      value={results.median_final_capital} 
+                    <StatCard
+                      icon={Target}
+                      label="Mediana Finale"
+                      value={results.median_final_capital}
                       format="currency"
                       color="primary"
                     />
-                    <StatCard 
-                      icon={TrendingUp} 
-                      label="Best Case" 
-                      value={results.max_final_capital} 
+                    <StatCard
+                      icon={TrendingUp}
+                      label="Best Case"
+                      value={results.max_final_capital}
                       format="currency"
                       color="green"
                       subValue="Top 1%"
                     />
-                    <StatCard 
-                      icon={TrendingDown} 
-                      label="Worst Case" 
-                      value={results.min_final_capital} 
+                    <StatCard
+                      icon={TrendingDown}
+                      label="Worst Case"
+                      value={results.min_final_capital}
                       format="currency"
                       color="red"
                       subValue="Bottom 1%"
@@ -491,45 +624,45 @@ export default function MonteCarloPage() {
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard 
-                      icon={AlertTriangle} 
-                      label="Ruin Probability" 
-                      value={results.bankruptcy_rate} 
+                    <StatCard
+                      icon={AlertTriangle}
+                      label="Ruin Probability"
+                      value={results.bankruptcy_rate}
                       format="percent"
                       color={results.bankruptcy_rate > 10 ? 'red' : 'green'}
                     />
-                    <StatCard 
-                      icon={ArrowDownRight} 
-                      label="Max Drawdown (avg)" 
-                      value={results.avg_max_drawdown || 0} 
+                    <StatCard
+                      icon={ArrowDownRight}
+                      label="Max Drawdown (avg)"
+                      value={results.avg_max_drawdown || 0}
                       format="percent"
                       color={results.avg_max_drawdown > 30 ? 'red' : 'yellow'}
                     />
-                    <StatCard 
-                      icon={Gauge} 
-                      label="Expectancy" 
+                    <StatCard
+                      icon={Gauge}
+                      label="Expectancy"
                       value={metrics.expectancy}
                       color={parseFloat(metrics.expectancy) > 0 ? 'green' : 'red'}
                     />
-                    <StatCard 
-                      icon={Percent} 
-                      label="Profit Factor" 
+                    <StatCard
+                      icon={Percent}
+                      label="Profit Factor"
                       value={metrics.profitFactor}
                       color={parseFloat(metrics.profitFactor) > 1 ? 'green' : 'red'}
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <StatCard 
-                      icon={Target} 
-                      label="Kelly Criterion" 
+                    <StatCard
+                      icon={Target}
+                      label="Kelly Criterion"
                       value={metrics.kellyPercent}
                       format="percent"
                       color="primary"
                     />
-                    <StatCard 
-                      icon={TrendingUp} 
-                      label="ROI Medio" 
+                    <StatCard
+                      icon={TrendingUp}
+                      label="ROI Medio"
                       value={metrics.avgReturn}
                       format="percent"
                       color={parseFloat(metrics.avgReturn) > 0 ? 'green' : 'red'}
@@ -543,19 +676,19 @@ export default function MonteCarloPage() {
                     <ResponsiveContainer>
                       <LineChart data={chartData}>
                         <CartesianGrid strokeDasharray="3 3" className="opacity-20" />
-                        <XAxis 
-                          dataKey="trade" 
+                        <XAxis
+                          dataKey="trade"
                           stroke="#666"
                           tick={{ fontSize: 10 }}
                         />
-                        <YAxis 
+                        <YAxis
                           stroke="#666"
                           tick={{ fontSize: 10 }}
-                          tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`}
+                          tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                         />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: 'hsl(var(--card))', 
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
                             border: '1px solid hsl(var(--border))',
                             borderRadius: '8px'
                           }}
@@ -585,7 +718,7 @@ export default function MonteCarloPage() {
                 <TabsContent value="metrics" className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Strategy Metrics */}
-                    <div className="p-4 bg-secondary/30 rounded-xl space-y-3">
+                    <div className="p-4 bg-white/5 rounded-xl space-y-3">
                       <h4 className="font-medium text-sm text-primary">Strategy Metrics</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
@@ -617,7 +750,7 @@ export default function MonteCarloPage() {
                     </div>
 
                     {/* Simulation Results */}
-                    <div className="p-4 bg-secondary/30 rounded-xl space-y-3">
+                    <div className="p-4 bg-white/5 rounded-xl space-y-3">
                       <h4 className="font-medium text-sm text-primary">Simulation Results</h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
@@ -672,7 +805,7 @@ export default function MonteCarloPage() {
       </div>
 
       {/* Formula Reference */}
-      <Card className="bg-secondary/30 border-border/50">
+      <Card className="bg-white/5 border-border/50">
         <CardContent className="p-4">
           <h4 className="font-medium text-sm mb-3 flex items-center gap-2">
             <Calculator className="w-4 h-4 text-primary" />

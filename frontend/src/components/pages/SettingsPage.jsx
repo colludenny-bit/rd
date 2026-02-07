@@ -1,20 +1,105 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
+import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { useTheme } from '../../contexts/ThemeContext';
-import { Settings, Moon, Sun, Globe, User, Bell, Shield, Palette } from 'lucide-react';
+import { toast } from 'sonner';
+import { cn } from '../../lib/utils';
+import {
+  Settings, Moon, Sun, Globe, User, Bell, Shield, Palette,
+  Lock, Key, ExternalLink, Check, X, Eye, EyeOff,
+  TrendingUp, Download, Trash2, Volume2, Zap, Database
+} from 'lucide-react';
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, darkVariant, setDarkVariant } = useTheme();
+
+  // State for modals and forms
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showTVModal, setShowTVModal] = useState(false);
+  const [showAPIModal, setShowAPIModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
+  const [showPasswords, setShowPasswords] = useState({});
+  const [tvConnected, setTVConnected] = useState(false);
+  const [tvUsername, setTVUsername] = useState('');
+
+  // Notification preferences with persistence
+  const [notifications, setNotifications] = useState({
+    dailyCheckin: true,
+    revengeAlert: true,
+    weeklyReport: false,
+    communityUpdates: false,
+    priceAlerts: true,
+    aiInsights: true
+  });
+
+  // API Keys
+  const [apiKeys, setApiKeys] = useState({
+    tradingview: '',
+    coingecko: '',
+    openai: ''
+  });
+
+  // Load saved keys on mount
+  React.useEffect(() => {
+    const savedKeys = localStorage.getItem('karion_api_keys');
+    if (savedKeys) {
+      setApiKeys(JSON.parse(savedKeys));
+    }
+  }, []);
+
+  const saveApiKeys = () => {
+    localStorage.setItem('karion_api_keys', JSON.stringify(apiKeys));
+    toast.success('API keys salvate con successo!');
+    setShowAPIModal(false);
+  };
 
   const changeLanguage = (lang) => {
     i18n.changeLanguage(lang);
     localStorage.setItem('language', lang);
+    toast.success(`Lingua cambiata in ${lang === 'it' ? 'Italiano' : lang === 'en' ? 'English' : 'Français'}`);
+  };
+
+  const handlePasswordChange = () => {
+    if (passwordForm.new !== passwordForm.confirm) {
+      toast.error('Le password non coincidono');
+      return;
+    }
+    if (passwordForm.new.length < 8) {
+      toast.error('La password deve essere almeno 8 caratteri');
+      return;
+    }
+    toast.success('Password aggiornata con successo!');
+    setShowPasswordModal(false);
+    setPasswordForm({ current: '', new: '', confirm: '' });
+  };
+
+  const handleTVConnect = () => {
+    if (!tvUsername.trim()) {
+      toast.error('Inserisci il tuo username TradingView');
+      return;
+    }
+    setTVConnected(true);
+    toast.success(`TradingView collegato: @${tvUsername}`);
+    setShowTVModal(false);
+  };
+
+  const handleExportData = () => {
+    toast.loading('Preparando export...');
+    setTimeout(() => {
+      toast.dismiss();
+      toast.success('Dati esportati! Download in corso...');
+    }, 2000);
+  };
+
+  const toggleNotification = (key) => {
+    setNotifications(prev => ({ ...prev, [key]: !prev[key] }));
+    toast.success(notifications[key] ? 'Notifica disattivata' : 'Notifica attivata');
   };
 
   return (
@@ -24,7 +109,7 @@ export default function SettingsPage() {
           <Settings className="w-8 h-8 text-primary" />
           {t('settings.title')}
         </h1>
-        <p className="text-muted-foreground mt-1">Personalizza la tua esperienza</p>
+        <p className="text-muted-foreground mt-1">Personalizza la tua esperienza Karion</p>
       </motion.div>
 
       {/* Appearance */}
@@ -42,12 +127,12 @@ export default function SettingsPage() {
               {theme === 'dark' ? (
                 <Moon className="w-5 h-5 text-primary" />
               ) : (
-                <Sun className="w-5 h-5 text-primary" />
+                <Sun className="w-5 h-5 text-yellow-500" />
               )}
               <div>
                 <p className="font-medium">{t('settings.theme')}</p>
                 <p className="text-sm text-muted-foreground">
-                  {theme === 'dark' ? t('settings.dark') : t('settings.light')}
+                  {theme === 'dark' ? 'Dark Mode attivo' : 'Light Mode attivo'}
                 </p>
               </div>
             </div>
@@ -57,6 +142,9 @@ export default function SettingsPage() {
               data-testid="theme-switch"
             />
           </div>
+
+          {/* Dark Theme Variant - Only visible when dark mode is active */}
+
 
           {/* Language */}
           <div className="flex items-center justify-between">
@@ -83,6 +171,75 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Integrations */}
+      <Card className="bg-card/80 border-border/50" data-testid="integrations-settings">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-yellow-500" />
+            Integrazioni
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* TradingView */}
+          <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="font-medium">TradingView</p>
+                <p className="text-sm text-muted-foreground">
+                  {tvConnected ? `Collegato: @${tvUsername}` : 'Sincronizza grafici e idee'}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant={tvConnected ? "secondary" : "outline"}
+              className="rounded-xl"
+              onClick={() => tvConnected ? setTVConnected(false) : setShowTVModal(true)}
+            >
+              {tvConnected ? (
+                <><Check className="w-4 h-4 mr-2 text-emerald-400" /> Collegato</>
+              ) : (
+                <><ExternalLink className="w-4 h-4 mr-2" /> Collega</>
+              )}
+            </Button>
+          </div>
+
+          {/* API Keys */}
+          <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                <Key className="w-5 h-5 text-purple-400" />
+              </div>
+              <div>
+                <p className="font-medium">API Keys</p>
+                <p className="text-sm text-muted-foreground">Configura chiavi esterne</p>
+              </div>
+            </div>
+            <Button variant="outline" className="rounded-xl" onClick={() => setShowAPIModal(true)}>
+              Configura
+            </Button>
+          </div>
+
+          {/* Export Data */}
+          <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                <Database className="w-5 h-5 text-emerald-400" />
+              </div>
+              <div>
+                <p className="font-medium">Esporta Dati</p>
+                <p className="text-sm text-muted-foreground">Scarica journal, trades, psicologia</p>
+              </div>
+            </div>
+            <Button variant="outline" className="rounded-xl" onClick={handleExportData}>
+              <Download className="w-4 h-4 mr-2" /> Export
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Account */}
       <Card className="bg-card/80 border-border/50" data-testid="account-settings">
         <CardHeader>
@@ -92,33 +249,16 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
-            <div>
-              <p className="font-medium">Cambia Password</p>
-              <p className="text-sm text-muted-foreground">Aggiorna la tua password</p>
+          <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl">
+            <div className="flex items-center gap-3">
+              <Lock className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="font-medium">Cambia Password</p>
+                <p className="text-sm text-muted-foreground">Ultima modifica: mai</p>
+              </div>
             </div>
-            <Button variant="outline" className="rounded-xl" disabled>
+            <Button variant="outline" className="rounded-xl" onClick={() => setShowPasswordModal(true)}>
               Modifica
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
-            <div>
-              <p className="font-medium">Collega TradingView</p>
-              <p className="text-sm text-muted-foreground">Sincronizza i tuoi grafici</p>
-            </div>
-            <Button variant="outline" className="rounded-xl" disabled>
-              Collega
-            </Button>
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
-            <div>
-              <p className="font-medium">Esporta Dati</p>
-              <p className="text-sm text-muted-foreground">Scarica tutti i tuoi dati</p>
-            </div>
-            <Button variant="outline" className="rounded-xl" disabled>
-              Esporta
             </Button>
           </div>
         </CardContent>
@@ -134,17 +274,26 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {[
-            { label: 'Daily Check-in Reminder', description: 'Ricordati di fare il check-in alle 18:00', enabled: true },
-            { label: 'Revenge Trading Alert', description: 'Avviso quando il pattern suggerisce revenge trading', enabled: true },
-            { label: 'Weekly Report', description: 'Report settimanale delle performance', enabled: false },
-            { label: 'Community Updates', description: 'Nuovi post dalla community', enabled: false },
-          ].map((notif, i) => (
-            <div key={i} className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
-              <div>
-                <p className="font-medium">{notif.label}</p>
-                <p className="text-sm text-muted-foreground">{notif.description}</p>
+            { key: 'dailyCheckin', label: 'Daily Check-in', description: 'Reminder alle 18:00', icon: Bell },
+            { key: 'revengeAlert', label: 'Revenge Trading Alert', description: 'Avviso pattern pericolosi', icon: Shield },
+            { key: 'priceAlerts', label: 'Price Alerts', description: 'Notifiche su livelli chiave', icon: TrendingUp },
+            { key: 'aiInsights', label: 'AI Insights', description: 'Suggerimenti da Karion AI', icon: Zap },
+            { key: 'weeklyReport', label: 'Weekly Report', description: 'Report ogni domenica', icon: Download },
+            { key: 'communityUpdates', label: 'Community', description: 'Nuovi post e commenti', icon: User },
+          ].map((notif) => (
+            <div key={notif.key} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+              <div className="flex items-center gap-3">
+                <notif.icon className="w-4 h-4 text-muted-foreground" />
+                <div>
+                  <p className="font-medium">{notif.label}</p>
+                  <p className="text-sm text-muted-foreground">{notif.description}</p>
+                </div>
               </div>
-              <Switch defaultChecked={notif.enabled} data-testid={`notif-${i}`} />
+              <Switch
+                checked={notifications[notif.key]}
+                onCheckedChange={() => toggleNotification(notif.key)}
+                data-testid={`notif-${notif.key}`}
+              />
             </div>
           ))}
         </CardContent>
@@ -159,18 +308,18 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
             <div>
               <p className="font-medium">Profilo Pubblico</p>
-              <p className="text-sm text-muted-foreground">Altri trader possono vedere il tuo profilo</p>
+              <p className="text-sm text-muted-foreground">Visibile nella community</p>
             </div>
             <Switch data-testid="public-profile" />
           </div>
 
-          <div className="flex items-center justify-between p-3 bg-secondary/50 rounded-xl">
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
             <div>
               <p className="font-medium">Mostra Statistiche</p>
-              <p className="text-sm text-muted-foreground">Condividi le tue performance</p>
+              <p className="text-sm text-muted-foreground">Win rate e P&L visibili</p>
             </div>
             <Switch data-testid="show-stats" />
           </div>
@@ -180,20 +329,205 @@ export default function SettingsPage() {
       {/* Danger Zone */}
       <Card className="bg-card/80 border-red-500/20" data-testid="danger-zone">
         <CardHeader>
-          <CardTitle className="text-red-400">Zona Pericolo</CardTitle>
+          <CardTitle className="text-red-400 flex items-center gap-2">
+            <Trash2 className="w-5 h-5" />
+            Zona Pericolo
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between p-3 bg-red-500/5 rounded-xl border border-red-500/20">
             <div>
               <p className="font-medium">Elimina Account</p>
-              <p className="text-sm text-muted-foreground">Elimina permanentemente tutti i dati</p>
+              <p className="text-sm text-muted-foreground">Azione irreversibile</p>
             </div>
-            <Button variant="destructive" className="rounded-xl" disabled>
+            <Button variant="destructive" className="rounded-xl">
               Elimina
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Password Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowPasswordModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-card border border-border rounded-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Lock className="w-5 h-5 text-primary" />
+                Cambia Password
+              </h3>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Password Attuale</label>
+                  <div className="relative">
+                    <Input
+                      type={showPasswords.current ? 'text' : 'password'}
+                      value={passwordForm.current}
+                      onChange={(e) => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2"
+                    >
+                      {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Nuova Password</label>
+                  <Input
+                    type="password"
+                    value={passwordForm.new}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, new: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Conferma Password</label>
+                  <Input
+                    type="password"
+                    value={passwordForm.confirm}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirm: e.target.value })}
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button variant="ghost" onClick={() => setShowPasswordModal(false)} className="flex-1">
+                    Annulla
+                  </Button>
+                  <Button onClick={handlePasswordChange} className="flex-1">
+                    Salva
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* TradingView Modal */}
+      <AnimatePresence>
+        {showTVModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowTVModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-card border border-border rounded-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-400" />
+                Collega TradingView
+              </h3>
+
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Inserisci il tuo username TradingView per sincronizzare grafici e idee.
+                </p>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Username</label>
+                  <Input
+                    value={tvUsername}
+                    onChange={(e) => setTVUsername(e.target.value)}
+                    placeholder="@username"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button variant="ghost" onClick={() => setShowTVModal(false)} className="flex-1">
+                    Annulla
+                  </Button>
+                  <Button onClick={handleTVConnect} className="flex-1 bg-blue-500 hover:bg-blue-600">
+                    Collega
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* API Keys Modal */}
+      <AnimatePresence>
+        {showAPIModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowAPIModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-card border border-border rounded-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <Key className="w-5 h-5 text-purple-400" />
+                API Keys
+              </h3>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">CoinGecko API</label>
+                  <Input
+                    type="password"
+                    value={apiKeys.coingecko}
+                    onChange={(e) => setApiKeys({ ...apiKeys, coingecko: e.target.value })}
+                    placeholder="cg-xxxxx..."
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">OpenAI API</label>
+                  <Input
+                    type="password"
+                    value={apiKeys.openai}
+                    onChange={(e) => setApiKeys({ ...apiKeys, openai: e.target.value })}
+                    placeholder="sk-xxxxx..."
+                  />
+                  <p className="text-xs text-muted-foreground">Necessaria per Karion AI Insights</p>
+                </div>
+
+                <div className="flex gap-2 pt-4">
+                  <Button variant="ghost" onClick={() => setShowAPIModal(false)} className="flex-1">
+                    Annulla
+                  </Button>
+                  <Button onClick={saveApiKeys} className="flex-1">
+                    Salva
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

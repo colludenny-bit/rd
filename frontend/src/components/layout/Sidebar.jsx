@@ -25,32 +25,66 @@ import {
   Activity,
   Globe,
   Bitcoin,
-  Calculator
+  Calculator,
+  Gauge
 } from 'lucide-react';
 
 const navItems = [
-  { path: '/', icon: Home, label: 'Home' },
-  { path: '/crypto', icon: Bitcoin, label: 'Crypto' },
-  { path: '/report', icon: BarChart3, label: 'Report' },
-  { path: '/news', icon: Newspaper, label: 'News' },
-  { path: '/macro', icon: Globe, label: 'Macro' },
-  { path: '/risk', icon: AlertTriangle, label: 'Risk' },
-  { path: '/cot', icon: TrendingUp, label: 'COT' },
-  { path: '/options', icon: Activity, label: 'Options' },
-  { path: '/statistics', icon: LineChart, label: 'Stats' },
-  { path: '/strategy', icon: Target, label: 'Strategia' },
-  { path: '/montecarlo', icon: Dices, label: 'Monte Carlo' },
-  { path: '/calculator', icon: Calculator, label: 'Calcolatore' },
-  { path: '/journal', icon: BookOpen, label: 'Journal' },
-  { path: '/psychology', icon: Brain, label: 'Psicologia' },
-  { path: '/ai', icon: Sparkles, label: 'Karion AI' },
-  { path: '/community', icon: Users, label: 'Community' },
+  { path: '/', icon: Home, label: 'Home', iconClass: 'icon-home' },
+  { path: '/crypto', icon: Bitcoin, label: 'Crypto', iconClass: 'icon-crypto' },
+  { path: '/report', icon: BarChart3, label: 'Report', iconClass: 'icon-report' },
+  { path: '/news', icon: Newspaper, label: 'News', iconClass: 'icon-news' },
+  { path: '/macro', icon: Globe, label: 'Macro', iconClass: 'icon-macro' },
+  { path: '/risk', icon: AlertTriangle, label: 'Risk', iconClass: 'icon-risk' },
+  { path: '/cot', icon: TrendingUp, label: 'COT', iconClass: 'icon-cot' },
+  { path: '/options', icon: Activity, label: 'Options', iconClass: 'icon-options' },
+  { path: '/statistics', icon: LineChart, label: 'Stats', iconClass: 'icon-stats' },
+  { path: '/performance', icon: Gauge, label: 'Performance', iconClass: 'icon-performance' },
+  { path: '/strategy', icon: Target, label: 'Strategia', iconClass: 'icon-strategy' },
+  { path: '/montecarlo', icon: Dices, label: 'Monte Carlo', iconClass: 'icon-montecarlo' },
+  { path: '/calculator', icon: Calculator, label: 'Calcolatore', iconClass: 'icon-calculator' },
+  { path: '/journal', icon: BookOpen, label: 'Journal', iconClass: 'icon-journal' },
+  { path: '/psychology', icon: Brain, label: 'Psicologia', iconClass: 'icon-psychology' },
+  { path: '/ai', icon: Sparkles, label: 'Karion AI', iconClass: 'icon-ai' },
+  { path: '/community', icon: Users, label: 'Community', iconClass: 'icon-community' },
 ];
+
 
 export const Sidebar = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+
+  // Voice analysis function for logo click
+  const speakMarketAnalysis = () => {
+    if (!window.speechSynthesis) return;
+
+    // Stop any current speech
+    window.speechSynthesis.cancel();
+
+    const hour = new Date().getHours();
+    let greeting = 'Buongiorno';
+    if (hour >= 12 && hour < 17) greeting = 'Buon pomeriggio';
+    else if (hour >= 17) greeting = 'Buonasera';
+
+    const analyses = [
+      `${greeting} trader! Oggi i mercati mostrano volatilità moderata. Il VIX è stabile, buon momento per operazioni trend-following. Ricorda di rispettare il tuo risk management.`,
+      `${greeting}! Sessione interessante oggi. I volumi sono sopra la media, attenzione ai livelli chiave di supporto e resistenza. Mantieni disciplina nelle entrate.`,
+      `${greeting}! Il sentiment è positivo sui tech. Le crypto mostrano correlazione con l'equity. Guarda i setup delle strategie più performanti prima di operare.`,
+      `${greeting}! Giornata di consolidamento sui mercati. Perfetta per rivedere il journal e analizzare le performance della settimana. La pazienza paga.`
+    ];
+
+    const text = analyses[Math.floor(Math.random() * analyses.length)];
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    const italianVoice = voices.find(v => v.lang.startsWith('it'));
+    if (italianVoice) utterance.voice = italianVoice;
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    window.speechSynthesis.speak(utterance);
+  };
 
   return (
     <>
@@ -67,25 +101,38 @@ export const Sidebar = ({ isOpen, onClose }) => {
         )}
       </AnimatePresence>
 
-      {/* Desktop Sidebar - Compact with Labels */}
+      {/* Desktop Sidebar - Premium Dark Theme */}
       <aside
         className={cn(
-          "fixed top-0 left-0 h-full bg-card/95 backdrop-blur-xl border-r border-border z-50",
+          "fixed top-0 left-0 h-full z-50",
           "hidden lg:flex flex-col items-center py-4",
-          "w-20"
+          "w-20",
+          "bg-gradient-to-b from-[#0a0e12] to-[#060809]",
+          "border-r border-[#00D9A5]/15",
+          "backdrop-blur-2xl",
+          "shadow-[4px_0_30px_rgba(0,217,165,0.05)]"
         )}
         data-testid="sidebar-desktop"
       >
-        {/* Logo */}
+        {/* Logo - Clickable for voice analysis */}
         <div className="mb-3 relative z-10 overflow-visible">
-          <div className="w-20 h-20 flex items-center justify-center" style={{ marginLeft: '4px' }}>
-            <img 
-              src="https://customer-assets.emergentagent.com/job_38b9976a-3c50-4a7a-8095-13c48833e390/artifacts/czwo9e5l_K%20%28Logo%29%20copia.png" 
+          <button
+            onClick={speakMarketAnalysis}
+            className="w-20 h-20 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform group"
+            style={{ marginLeft: '4px' }}
+            title="Click per analisi vocale mercati"
+            data-testid="logo-voice-btn"
+          >
+            <img
+              src="https://customer-assets.emergentagent.com/job_38b9976a-3c50-4a7a-8095-13c48833e390/artifacts/czwo9e5l_K%20%28Logo%29%20copia.png"
               alt="Logo"
-              className="w-20 h-20 object-contain"
+              className="w-20 h-20 object-contain group-hover:opacity-80"
               style={{ transform: 'translateX(6px)' }}
             />
-          </div>
+            <span className="absolute -bottom-1 text-[8px] text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+              🎤 Click
+            </span>
+          </button>
         </div>
 
         {/* Navigation Icons with Labels */}
@@ -106,8 +153,8 @@ export const Sidebar = ({ isOpen, onClose }) => {
                 data-testid={`nav-${item.label.toLowerCase().replace(' ', '-')}`}
               >
                 <Icon className={cn(
-                  "w-7 h-7",
-                  isActive ? "text-primary" : "text-muted-foreground"
+                  "w-7 h-7 sidebar-icon-animate",
+                  isActive ? item.iconClass : "text-muted-foreground"
                 )} />
                 <span className={cn(
                   "text-[9px] font-medium leading-tight text-center",
@@ -152,8 +199,8 @@ export const Sidebar = ({ isOpen, onClose }) => {
         <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden">
-              <img 
-                src="https://customer-assets.emergentagent.com/job_38b9976a-3c50-4a7a-8095-13c48833e390/artifacts/czwo9e5l_K%20%28Logo%29%20copia.png" 
+              <img
+                src="https://customer-assets.emergentagent.com/job_38b9976a-3c50-4a7a-8095-13c48833e390/artifacts/czwo9e5l_K%20%28Logo%29%20copia.png"
                 alt="Logo"
                 className="w-full h-full object-contain"
               />
@@ -224,7 +271,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
                       isActive && "bg-primary/10 text-primary border border-primary/20"
                     )}
                   >
-                    <Icon className={cn("w-5 h-5", isActive && "text-primary")} />
+                    <Icon className={cn("w-5 h-5 sidebar-icon-animate", isActive ? item.iconClass : "")} />
                     <span className={cn("font-medium", isActive && "text-primary")}>
                       {item.label}
                     </span>

@@ -145,7 +145,7 @@ export default function AscensionPage() {
 
                     {/* Level Info */}
                     <div className={`flex-1 p-4 rounded-xl ${
-                      isCurrent ? 'bg-primary/10 border border-primary' : 'bg-secondary/50'
+                      isCurrent ? 'bg-primary/10 border border-primary' : 'bg-white/5'
                     }`}>
                       <div className="flex items-center justify-between">
                         <div>
@@ -196,7 +196,7 @@ export default function AscensionPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
-                className="flex items-center gap-3 p-4 bg-secondary/50 rounded-xl"
+                className="flex items-center gap-3 p-4 bg-white/5 rounded-xl"
               >
                 <span className="text-2xl">{item.icon}</span>
                 <div>

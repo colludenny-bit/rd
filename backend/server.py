@@ -23,10 +23,46 @@ import asyncio
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+# Demo Mode - In-memory storage when MongoDB unavailable
+DEMO_MODE = False
+demo_users = {}  # In-memory user storage for demo
+demo_data = {
+    "psychology_checkins": [],
+    "psychology_eod": [],
+    "journal_entries": [],
+    "strategies": [],
+    "trades": [],
+    "community_posts": []
+}
+
+# MongoDB connection with fallback to demo mode
+try:
+    mongo_url = os.environ.get('MONGO_URL', '')
+    if not mongo_url:
+        raise Exception("No MONGO_URL")
+    client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=3000)
+    # Test connection
+    import asyncio
+    async def test_mongo():
+        await client.admin.command('ping')
+    asyncio.get_event_loop().run_until_complete(test_mongo())
+    db = client[os.environ.get('DB_NAME', 'karion_trading_os')]
+    print("✅ Connected to MongoDB")
+except Exception as e:
+    print(f"⚠️ MongoDB unavailable: {e}")
+    print("🎮 Running in DEMO MODE with in-memory storage")
+    DEMO_MODE = True
+    db = None
+    # Pre-populate demo user
+    demo_users["test@test.com"] = {
+        "id": "demo-user-123",
+        "email": "test@test.com",
+        "name": "Demo Trader",
+        "password": "$2b$12$QUndHtYfA4s8ni5Y27PTA.8MyHLw3TTiI54gQIRcGFmS5Pu7MxIRu",  # password123
+        "created_at": "2024-01-01T00:00:00Z",
+        "level": "Trader Intermedio",
+        "xp": 1500
+    }
 
 # JWT Configuration
 JWT_SECRET = os.environ.get('JWT_SECRET', 'tradingos-secret-key-2024')
@@ -218,10 +254,18 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
-        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
+        
+        if DEMO_MODE:
+            # Find user in demo storage
+            user = next((u for u in demo_users.values() if u["id"] == user_id), None)
+            if user:
+                return {k: v for k, v in user.items() if k != "password"}
+        else:
+            user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+            if user:
+                return user
+        
+        raise HTTPException(status_code=401, detail="User not found")
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
@@ -231,28 +275,41 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 @api_router.post("/auth/register", response_model=TokenResponse)
 async def register(user_data: UserCreate):
-    existing = await db.users.find_one({"email": user_data.email})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    user_id = str(uuid.uuid4())
-    user_doc = {
-        "id": user_id,
-        "email": user_data.email,
-        "name": user_data.name,
-        "password": hash_password(user_data.password),
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "level": "Novice",
-        "xp": 0
-    }
-    await db.users.insert_one(user_doc)
+    if DEMO_MODE:
+        if user_data.email in demo_users:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        user_id = str(uuid.uuid4())
+        demo_users[user_data.email] = {
+            "id": user_id,
+            "email": user_data.email,
+            "name": user_data.name,
+            "password": hash_password(user_data.password),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "level": "Novice",
+            "xp": 0
+        }
+    else:
+        existing = await db.users.find_one({"email": user_data.email})
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        user_id = str(uuid.uuid4())
+        user_doc = {
+            "id": user_id,
+            "email": user_data.email,
+            "name": user_data.name,
+            "password": hash_password(user_data.password),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "level": "Novice",
+            "xp": 0
+        }
+        await db.users.insert_one(user_doc)
     
     token = create_token(user_id, user_data.email)
     user_response = UserResponse(
         id=user_id,
         email=user_data.email,
         name=user_data.name,
-        created_at=user_doc["created_at"],
+        created_at=datetime.now(timezone.utc).isoformat(),
         level="Novice",
         xp=0
     )
@@ -260,7 +317,11 @@ async def register(user_data: UserCreate):
 
 @api_router.post("/auth/login", response_model=TokenResponse)
 async def login(credentials: UserLogin):
-    user = await db.users.find_one({"email": credentials.email})
+    if DEMO_MODE:
+        user = demo_users.get(credentials.email)
+    else:
+        user = await db.users.find_one({"email": credentials.email})
+    
     if not user or not verify_password(credentials.password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
@@ -1609,6 +1670,14 @@ def generate_cot_data(symbol: str):
         
         confidence = min(90, 50 + abs(am_percentile - 50))
         
+        # Rolling bias (last 4 weeks)
+        rolling_bias = [
+            {"label": "W-3", "value": random.randint(30, 60), "isCurrent": False},
+            {"label": "W-2", "value": random.randint(40, 70), "isCurrent": False},
+            {"label": "W-1", "value": random.randint(50, 85), "isCurrent": False, "isPrevious": True},
+            {"label": "W-0", "value": am_percentile, "isCurrent": True}
+        ]
+        
     else:  # XAU - Disaggregated
         report_type = "Disaggregated"
         
@@ -1666,6 +1735,14 @@ def generate_cot_data(symbol: str):
             squeeze_risk = random.randint(15, 40)
         
         confidence = min(85, 45 + abs(mm_percentile - 50))
+
+        # Rolling bias (last 4 weeks)
+        rolling_bias = [
+            {"label": "W-3", "value": random.randint(40, 70), "isCurrent": False},
+            {"label": "W-2", "value": random.randint(50, 80), "isCurrent": False},
+            {"label": "W-1", "value": random.randint(60, 90), "isCurrent": False, "isPrevious": True},
+            {"label": "W-0", "value": mm_percentile, "isCurrent": True}
+        ]
     
     return {
         "symbol": symbol,
@@ -1681,7 +1758,8 @@ def generate_cot_data(symbol: str):
         "squeeze_risk": squeeze_risk,
         "driver_text": driver_text,
         "open_interest": random.randint(200000, 500000),
-        "oi_change": random.randint(-5000, 5000)
+        "oi_change": random.randint(-5000, 5000),
+        "rolling_bias": rolling_bias
     }
 
 @api_router.get("/cot/data")
@@ -2058,4 +2136,12 @@ app.add_middleware(
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    if not DEMO_MODE:
+        client.close()
+
+if __name__ == "__main__":
+    import uvicorn
+    print("🚀 Starting Karion Trading OS Backend...")
+    print(f"📊 Mode: {'DEMO (in-memory)' if DEMO_MODE else 'PRODUCTION (MongoDB)'}")
+    print("🌐 Server running at http://localhost:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

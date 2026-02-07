@@ -8,11 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ScrollArea } from '../ui/scroll-area';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
-import { 
-  Send, Calculator, Dices, TrendingUp, FileText, 
-  Brain, LineChart, Sparkles, Zap, User, Heart, 
+import {
+  Send, Calculator, Dices, TrendingUp, FileText,
+  Brain, LineChart, Sparkles, Zap, User, Heart,
   Target, Shield, BookOpen, Activity, BarChart3,
-  MessageCircle, RefreshCw, ChevronRight
+  MessageCircle, RefreshCw, ChevronRight, Volume2, VolumeX, Settings2, Mic
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -24,9 +24,9 @@ const KarionLogo = ({ size = 'md', animate = false }) => {
     md: 'w-12 h-12',
     lg: 'w-16 h-16'
   };
-  
+
   return (
-    <motion.div 
+    <motion.div
       className={cn(
         "rounded-2xl bg-gradient-to-br from-primary via-emerald-500 to-primary flex items-center justify-center relative overflow-hidden",
         sizes[size]
@@ -36,7 +36,7 @@ const KarionLogo = ({ size = 'md', animate = false }) => {
     >
       {/* Bull silhouette simplified */}
       <svg viewBox="0 0 24 24" className="w-2/3 h-2/3 text-white" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-5l-3 3-1.5-1.5L12 7.5l5.5 5.5-1.5 1.5-3-3v5h-2z"/>
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-5l-3 3-1.5-1.5L12 7.5l5.5 5.5-1.5 1.5-3-3v5h-2z" />
       </svg>
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
     </motion.div>
@@ -49,9 +49,9 @@ const QuickAction = ({ icon: Icon, label, onClick, active }) => (
     onClick={onClick}
     className={cn(
       "flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all",
-      active 
-        ? "bg-primary/20 text-primary border border-primary/30" 
-        : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+      active
+        ? "bg-primary/20 text-primary border border-primary/30"
+        : "bg-white/5 text-muted-foreground hover:bg-secondary hover:text-foreground"
     )}
   >
     <Icon className="w-4 h-4" />
@@ -73,8 +73,8 @@ const ChatMessage = ({ message, isUser }) => (
     )}
     <div className={cn(
       "max-w-[85%] px-4 py-3 rounded-2xl text-sm",
-      isUser 
-        ? "bg-primary text-primary-foreground rounded-br-md" 
+      isUser
+        ? "bg-primary text-primary-foreground rounded-br-md"
         : "bg-secondary/80 rounded-bl-md"
     )}>
       <p className="whitespace-pre-wrap leading-relaxed">{message}</p>
@@ -107,6 +107,114 @@ export default function AIPage() {
   const [loadingIntimate, setLoadingIntimate] = useState(false);
   const scrollRef = useRef(null);
 
+  // TTS Voice States
+  const [voices, setVoices] = useState([]);
+  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [voiceGreeted, setVoiceGreeted] = useState(false);
+
+  // Available voice presets (mapped to Web Speech API voices)
+  const voicePresets = [
+    { id: 'jarvis', label: 'JARVIS', gender: 'male', lang: 'en' },
+    { id: 'friday', label: 'FRIDAY', gender: 'female', lang: 'en' },
+    { id: 'italian-m', label: 'Marco (IT)', gender: 'male', lang: 'it' },
+    { id: 'italian-f', label: 'Lucia (IT)', gender: 'female', lang: 'it' },
+    { id: 'default', label: 'Default', gender: 'any', lang: 'any' }
+  ];
+  const [activePreset, setActivePreset] = useState('italian-m');
+
+  // Load available voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const availableVoices = window.speechSynthesis?.getVoices() || [];
+      setVoices(availableVoices);
+      // Auto-select first Italian voice if available
+      const italianVoice = availableVoices.find(v => v.lang.startsWith('it'));
+      if (italianVoice && !selectedVoice) {
+        setSelectedVoice(italianVoice);
+      }
+    };
+
+    loadVoices();
+    window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
+    return () => window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
+  }, []);
+
+  // Find best matching voice for preset
+  const getVoiceForPreset = (presetId) => {
+    const preset = voicePresets.find(p => p.id === presetId);
+    if (!preset || voices.length === 0) return null;
+
+    let matchingVoices = voices;
+
+    if (preset.lang !== 'any') {
+      matchingVoices = matchingVoices.filter(v => v.lang.startsWith(preset.lang));
+    }
+
+    // Try to match gender by name keywords
+    if (preset.gender === 'male') {
+      const maleVoice = matchingVoices.find(v =>
+        v.name.toLowerCase().includes('male') ||
+        v.name.toLowerCase().includes('daniel') ||
+        v.name.toLowerCase().includes('alex') ||
+        v.name.toLowerCase().includes('luca') ||
+        v.name.toLowerCase().includes('marco')
+      );
+      if (maleVoice) return maleVoice;
+    } else if (preset.gender === 'female') {
+      const femaleVoice = matchingVoices.find(v =>
+        v.name.toLowerCase().includes('female') ||
+        v.name.toLowerCase().includes('samantha') ||
+        v.name.toLowerCase().includes('victoria') ||
+        v.name.toLowerCase().includes('alice') ||
+        v.name.toLowerCase().includes('lucia')
+      );
+      if (femaleVoice) return femaleVoice;
+    }
+
+    return matchingVoices[0] || voices[0];
+  };
+
+  // Speak text function
+  const speakText = (text) => {
+    if (!voiceEnabled || !window.speechSynthesis) return;
+
+    // Stop any current speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    const voice = getVoiceForPreset(activePreset);
+    if (voice) utterance.voice = voice;
+
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Stop speaking
+  const stopSpeaking = () => {
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
+  };
+
+  // JARVIS-style greeting on first load
+  useEffect(() => {
+    if (messages.length === 1 && !voiceGreeted && voiceEnabled) {
+      setVoiceGreeted(true);
+      setTimeout(() => {
+        speakText('Ciao, sono Karion, il tuo AI Coach personale. Come posso aiutarti oggi?');
+      }, 1000);
+    }
+  }, [messages, voiceGreeted, voiceEnabled]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -131,7 +239,7 @@ Come posso aiutarti oggi?`
 
   const sendMessage = async (text = input) => {
     if (!text.trim() || loading) return;
-    
+
     const userMessage = { role: 'user', content: text };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
@@ -142,14 +250,14 @@ Come posso aiutarti oggi?`
         messages: [...messages, userMessage],
         context: activeQuick || 'general'
       });
-      
+
       // Clean response - remove links and normalize font
       let cleanResponse = res.data.response
         .replace(/\[.*?\]\(.*?\)/g, '') // Remove markdown links
         .replace(/https?:\/\/\S+/g, '') // Remove URLs
         .replace(/\*\*/g, '') // Remove bold markdown
         .trim();
-      
+
       const aiMessage = { role: 'assistant', content: cleanResponse };
       setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
@@ -168,7 +276,7 @@ Come posso aiutarti oggi?`
   const runIntimateAnalysis = async () => {
     setLoadingIntimate(true);
     setShowIntimateModal(true);
-    
+
     try {
       const res = await axios.post(`${API}/ai/intimate-analysis`);
       setIntimateAnalysis(res.data.analysis);
@@ -195,10 +303,10 @@ Sono qui per te, sempre.
   };
 
   return (
-    <div className="space-y-6 fade-in" data-testid="ai-page">
+    <div className="space-y-6 fade-in font-apple" data-testid="ai-page">
       {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
@@ -211,17 +319,99 @@ Sono qui per te, sempre.
             <p className="text-muted-foreground text-sm">Il tuo coach personale di trading</p>
           </div>
         </div>
-        
-        {/* Intimate Analysis Button */}
-        <Button
-          onClick={runIntimateAnalysis}
-          className="bg-gradient-to-r from-primary via-purple-500 to-pink-500 hover:opacity-90 rounded-xl"
-          data-testid="intimate-analysis-btn"
-        >
-          <Heart className="w-4 h-4 mr-2" />
-          Analisi Intima
-        </Button>
+
+        {/* Voice Controls & Intimate Analysis */}
+        <div className="flex items-center gap-2">
+          {/* Voice Status Indicator */}
+          {isSpeaking && (
+            <button
+              onClick={stopSpeaking}
+              className="flex items-center gap-2 px-3 py-2 bg-cyan-500/20 text-cyan-400 rounded-xl text-sm animate-pulse"
+            >
+              <Volume2 className="w-4 h-4" />
+              Speaking...
+            </button>
+          )}
+
+          {/* Voice Toggle */}
+          <button
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            className={cn(
+              "p-2 rounded-xl transition-all",
+              voiceEnabled ? "bg-cyan-500/20 text-cyan-400" : "bg-secondary text-muted-foreground"
+            )}
+            title={voiceEnabled ? "Disabilita voce" : "Abilita voce"}
+          >
+            {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          </button>
+
+          {/* Voice Settings */}
+          <button
+            onClick={() => setShowVoiceSettings(!showVoiceSettings)}
+            className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-all"
+            title="Impostazioni voce"
+          >
+            <Settings2 className="w-5 h-5" />
+          </button>
+
+          {/* Intimate Analysis Button */}
+          <Button
+            onClick={runIntimateAnalysis}
+            className="bg-gradient-to-r from-primary via-purple-500 to-pink-500 hover:opacity-90 rounded-xl"
+            data-testid="intimate-analysis-btn"
+          >
+            <Heart className="w-4 h-4 mr-2" />
+            Analisi Intima
+          </Button>
+        </div>
       </motion.div>
+
+      {/* Voice Settings Panel */}
+      <AnimatePresence>
+        {showVoiceSettings && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="glass-enhanced p-0 border-cyan-500/30">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Mic className="w-4 h-4 text-cyan-400" />
+                    Voice Settings
+                  </h4>
+                  <span className="text-xs text-muted-foreground">
+                    {voices.length} voci disponibili
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {voicePresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => setActivePreset(preset.id)}
+                      className={cn(
+                        "px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                        activePreset === preset.id
+                          ? "bg-cyan-500 text-white"
+                          : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                      )}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+
+                <p className="text-xs text-muted-foreground mt-2">
+                  Seleziona una voce per le risposte di Karion. Clicca sull'icona audio sui messaggi per riascoltare.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2">
@@ -237,8 +427,8 @@ Sono qui per te, sempre.
       </div>
 
       {/* Main Chat Area */}
-      <Card className="bg-card/80 border-border/50 h-[calc(100vh-350px)] min-h-[400px]">
-        <CardContent className="p-0 h-full flex flex-col">
+      <div className="glass-enhanced h-[calc(100vh-350px)] min-h-[400px]">
+        <div className="p-0 h-full flex flex-col">
           {/* Messages */}
           <ScrollArea className="flex-1 p-4" ref={scrollRef}>
             <div className="space-y-4">
@@ -249,7 +439,7 @@ Sono qui per te, sempre.
                   isUser={msg.role === 'user'}
                 />
               ))}
-              
+
               {loading && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -274,12 +464,12 @@ Sono qui per te, sempre.
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Scrivi a Karion..."
-                className="flex-1 bg-secondary/50 rounded-xl"
+                className="flex-1 bg-white/5 rounded-xl"
                 disabled={loading}
                 data-testid="ai-chat-input"
               />
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={loading || !input.trim()}
                 className="rounded-xl px-6"
                 data-testid="ai-send-btn"
@@ -288,52 +478,52 @@ Sono qui per te, sempre.
               </Button>
             </form>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Suggestion Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card 
-          className="bg-secondary/30 border-border/50 cursor-pointer hover:bg-secondary/50 transition-colors"
+        <div
+          className="glass-tab p-4 cursor-pointer hover:border-primary/40 transition-all"
           onClick={() => sendMessage('Analizza i miei ultimi 10 trade e dimmi cosa posso migliorare')}
         >
-          <CardContent className="p-4 flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <BarChart3 className="w-8 h-8 text-primary" />
             <div>
               <p className="font-medium text-sm">Analisi Trade</p>
               <p className="text-xs text-muted-foreground">Ultimi 10 trade</p>
             </div>
             <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="bg-secondary/30 border-border/50 cursor-pointer hover:bg-secondary/50 transition-colors"
+          </div>
+        </div>
+
+        <div
+          className="glass-tab p-4 cursor-pointer hover:border-primary/40 transition-all"
           onClick={() => sendMessage('Come sto gestendo lo stress questa settimana?')}
         >
-          <CardContent className="p-4 flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <Brain className="w-8 h-8 text-purple-400" />
             <div>
               <p className="font-medium text-sm">Check Psicologico</p>
               <p className="text-xs text-muted-foreground">Stato mentale</p>
             </div>
             <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
-          </CardContent>
-        </Card>
-        
-        <Card 
-          className="bg-secondary/30 border-border/50 cursor-pointer hover:bg-secondary/50 transition-colors"
+          </div>
+        </div>
+
+        <div
+          className="glass-tab p-4 cursor-pointer hover:border-primary/40 transition-all"
           onClick={() => sendMessage('Qual è il setup migliore da cercare oggi in base al mio storico?')}
         >
-          <CardContent className="p-4 flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <Target className="w-8 h-8 text-emerald-400" />
             <div>
               <p className="font-medium text-sm">Setup Consigliato</p>
               <p className="text-xs text-muted-foreground">In base al tuo storico</p>
             </div>
             <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Intimate Analysis Modal */}
@@ -368,7 +558,7 @@ Sono qui per te, sempre.
                   </div>
                 </div>
               </div>
-              
+
               {/* Modal Content */}
               <ScrollArea className="max-h-[60vh] p-6">
                 {loadingIntimate ? (
@@ -384,7 +574,7 @@ Sono qui per te, sempre.
                   </div>
                 )}
               </ScrollArea>
-              
+
               {/* Modal Footer */}
               <div className="p-4 border-t border-border flex justify-end">
                 <Button
@@ -398,6 +588,6 @@ Sono qui per te, sempre.
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div >
   );
 }

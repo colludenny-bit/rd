@@ -68,7 +68,7 @@ const calculateFlowSummary = (flows) => {
 const FlowRow = ({ flow }) => (
   <div className={cn(
     "grid grid-cols-8 gap-2 p-3 rounded-lg text-sm items-center",
-    flow.unusual ? "bg-yellow-500/10 border border-yellow-500/30" : "bg-secondary/30",
+    flow.unusual ? "bg-yellow-500/10 border border-yellow-500/30" : "bg-white/5",
     flow.sweep && "ring-1 ring-primary/50"
   )}>
     <span className="text-muted-foreground">{flow.time}</span>
@@ -306,13 +306,13 @@ export default function OptionsFlowPage() {
                     ${selectedSymbol === 'SPY' ? '598' : selectedSymbol === 'QQQ' ? '515' : '242'}
                   </span>
                 </div>
-                <div className="flex justify-between p-2 bg-secondary/30 rounded">
+                <div className="flex justify-between p-2 bg-white/5 rounded">
                   <span>Call Wall</span>
                   <span className="font-mono">
                     ${selectedSymbol === 'SPY' ? '610' : selectedSymbol === 'QQQ' ? '530' : '250'}
                   </span>
                 </div>
-                <div className="flex justify-between p-2 bg-secondary/30 rounded">
+                <div className="flex justify-between p-2 bg-white/5 rounded">
                   <span>Put Wall</span>
                   <span className="font-mono">
                     ${selectedSymbol === 'SPY' ? '585' : selectedSymbol === 'QQQ' ? '500' : '235'}

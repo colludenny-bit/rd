@@ -89,7 +89,7 @@ export default function AuthPage() {
                       placeholder="Il tuo nome"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="pl-10 h-12 bg-secondary/50 border-border/50 rounded-xl"
+                      className="pl-10 h-12 bg-white/5 border-border/50 rounded-xl"
                       required={!isLogin}
                       data-testid="auth-name-input"
                     />
@@ -109,7 +109,7 @@ export default function AuthPage() {
                     placeholder="trader@example.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="pl-10 h-12 bg-secondary/50 border-border/50 rounded-xl"
+                    className="pl-10 h-12 bg-white/5 border-border/50 rounded-xl"
                     required
                     data-testid="auth-email-input"
                   />
@@ -128,7 +128,7 @@ export default function AuthPage() {
                     placeholder="••••••••"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="pl-10 h-12 bg-secondary/50 border-border/50 rounded-xl"
+                    className="pl-10 h-12 bg-white/5 border-border/50 rounded-xl"
                     required
                     data-testid="auth-password-input"
                   />
@@ -181,7 +181,7 @@ export default function AuthPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-12 rounded-xl border-border/50 hover:bg-secondary/50"
+                className="w-full h-12 rounded-xl border-border/50 hover:bg-white/5"
                 disabled
                 data-testid="google-login-btn"
               >
@@ -197,7 +197,7 @@ export default function AuthPage() {
               <Button
                 type="button"
                 variant="outline"
-                className="w-full h-12 rounded-xl border-border/50 hover:bg-secondary/50"
+                className="w-full h-12 rounded-xl border-border/50 hover:bg-white/5"
                 disabled
                 data-testid="apple-login-btn"
               >

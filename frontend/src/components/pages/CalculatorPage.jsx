@@ -51,7 +51,7 @@ const ResultCard = ({ label, value, subValue, icon: Icon, color = 'primary' }) =
   };
   
   return (
-    <div className="p-4 bg-secondary/30 rounded-xl">
+    <div className="p-4 bg-white/5 rounded-xl">
       <div className="flex items-center gap-2 mb-2">
         {Icon && <Icon className={cn("w-4 h-4", colorClasses[color])} />}
         <span className="text-xs text-muted-foreground">{label}</span>
@@ -295,7 +295,7 @@ export default function CalculatorPage() {
                 </div>
 
                 {/* Costs */}
-                <div className="p-4 bg-secondary/30 rounded-xl">
+                <div className="p-4 bg-white/5 rounded-xl">
                   <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
                     <BarChart3 className="w-4 h-4" /> Costi Operazione
                   </h4>

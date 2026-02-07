@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { cn } from '../../lib/utils';
-import { 
-  TrendingUp, TrendingDown, Calendar, BarChart3, RefreshCw, 
+import {
+  TrendingUp, TrendingDown, Calendar, BarChart3, RefreshCw,
   AlertTriangle, Clock, Target, Shield, Zap, Activity,
   ArrowUp, ArrowDown, Minus, CheckCircle2, XCircle, Eye
 } from 'lucide-react';
@@ -15,7 +15,7 @@ const generateMarketData = () => {
   const now = new Date();
   const vixBase = 18 + Math.random() * 8;
   const vixChange = (Math.random() - 0.5) * 2;
-  
+
   return {
     vix: {
       current: vixBase.toFixed(2),
@@ -94,23 +94,23 @@ const calcDistancePercent = (current, level) => {
 const calculateProbability = (asset, data, vix, strategy) => {
   let baseProbability = 50;
   const current = data.current;
-  
+
   // Distance from extremes
   const distFromHigh = ((data.twoWeekHigh - current) / data.twoWeekHigh) * 100;
   const distFromLow = ((current - data.twoWeekLow) / data.twoWeekLow) * 100;
-  
+
   // VIX factor
   const vixValue = parseFloat(vix.current);
   if (vix.regime === 'risk-on') baseProbability += 5;
   if (vix.regime === 'risk-off') baseProbability -= 5;
   if (vix.direction === 'falling') baseProbability += 3;
   if (vix.direction === 'rising') baseProbability -= 3;
-  
+
   // Premium zone factor
   if (distFromHigh < 1 || distFromLow < 1) {
     baseProbability += 10; // Near premium zone
   }
-  
+
   // Strategy specific
   if (strategy === 1) {
     // News Spike Reversion - higher prob if rejection visible
@@ -119,7 +119,7 @@ const calculateProbability = (asset, data, vix, strategy) => {
     // VIX Range Fade - higher prob if VIX stable
     if (vix.direction === 'stable') baseProbability += 8;
   }
-  
+
   // Cap probability
   return Math.min(Math.max(baseProbability, 35), 85);
 };
@@ -128,23 +128,23 @@ const calculateProbability = (asset, data, vix, strategy) => {
 const generateSignals = (marketData) => {
   const signals = [];
   const { vix, assets } = marketData;
-  
+
   Object.entries(assets).forEach(([symbol, data]) => {
     const current = data.current;
     const prob1 = calculateProbability(symbol, data, vix, 1);
     const prob2 = calculateProbability(symbol, data, vix, 2);
-    
+
     // Strategy 1 - News Spike Reversion
     if (prob1 >= 55) {
       const isNearHigh = current > data.weeklyHigh * 0.995;
       const isNearLow = current < data.weeklyLow * 1.005;
-      
+
       if (isNearHigh || isNearLow) {
         const direction = isNearHigh ? 'short' : 'long';
         const entry = current;
         const stopDist = isNearHigh ? data.twoWeekHigh - current + 5 : current - data.twoWeekLow + 5;
         const oneR = Math.abs(stopDist);
-        
+
         signals.push({
           id: `${symbol}-S1`,
           asset: symbol,
@@ -152,11 +152,11 @@ const generateSignals = (marketData) => {
           strategy: 1,
           strategyName: 'News Spike Reversion',
           direction,
-          trigger: isNearHigh 
+          trigger: isNearHigh
             ? `Prezzo vicino 2W High (${data.twoWeekHigh}), attendi rejection e rientro sotto ${data.weeklyHigh}`
             : `Prezzo vicino 2W Low (${data.twoWeekLow}), attendi rejection e rientro sopra ${data.weeklyLow}`,
           entry: entry.toFixed(symbol === 'EURUSD' ? 5 : 2),
-          stop: isNearHigh 
+          stop: isNearHigh
             ? (data.twoWeekHigh + oneR * 0.1).toFixed(symbol === 'EURUSD' ? 5 : 2)
             : (data.twoWeekLow - oneR * 0.1).toFixed(symbol === 'EURUSD' ? 5 : 2),
           oneR: oneR.toFixed(2),
@@ -174,19 +174,19 @@ const generateSignals = (marketData) => {
         });
       }
     }
-    
+
     // Strategy 2 - VIX Range Fade (only for NQ and SP500)
     if ((symbol === 'NQ' || symbol === 'SP500') && prob2 >= 55 && vix.regime !== 'risk-off') {
       const midPoint = (data.weeklyHigh + data.weeklyLow) / 2;
       const distFromMid = Math.abs(current - midPoint);
       const range = data.weeklyHigh - data.weeklyLow;
-      
+
       if (distFromMid > range * 0.35) {
         const direction = current > midPoint ? 'short' : 'long';
         const entry = current;
         const stopLevel = direction === 'short' ? data.weeklyHigh : data.weeklyLow;
         const oneR = Math.abs(entry - stopLevel);
-        
+
         signals.push({
           id: `${symbol}-S2`,
           asset: symbol,
@@ -213,8 +213,137 @@ const generateSignals = (marketData) => {
       }
     }
   });
-  
+
   return signals.filter(s => s.probability >= 55).slice(0, 6);
+};
+
+// Generate MEDIUM-TERM signals (1-2 weeks) - GammaMagnet, Rate-Vol Alignment
+const generateMediumTermSignals = (marketData) => {
+  const signals = [];
+  const { vix, assets } = marketData;
+
+  // GammaMagnet Convergence - NQ, SP500 (68% win rate)
+  ['NQ', 'SP500'].forEach(symbol => {
+    const data = assets[symbol] || assets.SP500;
+    const current = data.current;
+    const gammaLevel = symbol === 'NQ' ? 21500 : 6050;
+    const distToGamma = Math.abs(current - gammaLevel);
+    const prob = 68 + (distToGamma < 50 ? 5 : -3);
+
+    signals.push({
+      id: `${symbol}-GM`,
+      asset: symbol,
+      assetName: data.name,
+      strategy: 'GM',
+      strategyName: 'GammaMagnet Convergence',
+      direction: current < gammaLevel ? 'long' : 'short',
+      trigger: `Gamma positivo su strike ${gammaLevel}. OI elevato attrae prezzo.`,
+      entry: current.toFixed(2),
+      stop: (current + (current < gammaLevel ? -1 : 1) * 80).toFixed(2),
+      oneR: '80',
+      tp1: gammaLevel.toFixed(2),
+      tp2: (gammaLevel + (current < gammaLevel ? 30 : -30)).toFixed(2),
+      probability: Math.min(prob, 75),
+      confidence: Math.round(prob * 1.1),
+      status: 'watch',
+      pnlR: 0,
+      winRate: 68,
+      timeframe: 'medium',
+      motivations: [
+        `Alta OI concentrata su strike ${gammaLevel}`,
+        `VIX ${vix.regime} - favorisce convergenza gamma`,
+        `Target: livello gamma magnet entro 5-7 giorni`
+      ]
+    });
+  });
+
+  // Rate-Volatility Alignment - TLT, EURUSD (62% win rate)
+  ['EURUSD'].forEach(symbol => {
+    const data = assets[symbol];
+    if (!data) return;
+    const current = data.current;
+    const yieldTrend = Math.random() > 0.5 ? 'falling' : 'rising';
+    const direction = yieldTrend === 'falling' ? 'long' : 'short';
+    const prob = 62;
+
+    signals.push({
+      id: `${symbol}-RV`,
+      asset: symbol,
+      assetName: data.name,
+      strategy: 'RV',
+      strategyName: 'Rate-Volatility Alignment',
+      direction,
+      trigger: `Yield ${yieldTrend} + VIX ${vix.direction}. Correlazione attiva.`,
+      entry: current.toFixed(5),
+      stop: (current + (direction === 'long' ? -0.0080 : 0.0080)).toFixed(5),
+      oneR: '80 pips',
+      tp1: (current + (direction === 'long' ? 0.0100 : -0.0100)).toFixed(5),
+      tp2: (current + (direction === 'long' ? 0.0130 : -0.0130)).toFixed(5),
+      probability: prob,
+      confidence: Math.round(prob * 1.15),
+      status: 'watch',
+      pnlR: 0,
+      winRate: 62,
+      timeframe: 'medium',
+      motivations: [
+        `Correlazione yield-VIX confermata`,
+        `DXY ${direction === 'long' ? 'debole' : 'forte'} supporta setup`,
+        `Target: 1.2R entro 1-2 settimane`
+      ]
+    });
+  });
+
+  return signals.filter(s => s.probability >= 55);
+};
+
+// Generate LONG-TERM signals (1-4 weeks) - Multi-Day Rejection
+const generateLongTermSignals = (marketData) => {
+  const signals = [];
+  const { vix, assets } = marketData;
+
+  // Multi-Day Rejection/Acceptance (56% win rate, high R:R)
+  Object.entries(assets).forEach(([symbol, data]) => {
+    const current = data.current;
+    const weeklyRange = data.weeklyHigh - data.weeklyLow;
+    const isNearHigh = current > data.twoWeekHigh * 0.99;
+    const isNearLow = current < data.twoWeekLow * 1.01;
+
+    if (isNearHigh || isNearLow) {
+      const direction = isNearHigh ? 'short' : 'long';
+      const rejectionType = isNearHigh ? 'Rejection da 2W High' : 'Rejection da 2W Low';
+      const prob = 56 + (vix.regime === 'risk-on' && direction === 'long' ? 5 : 0);
+
+      signals.push({
+        id: `${symbol}-MD`,
+        asset: symbol,
+        assetName: data.name,
+        strategy: 'MD',
+        strategyName: 'Multi-Day Rejection',
+        direction,
+        trigger: `${rejectionType}. Attendi conferma close daily.`,
+        entry: current.toFixed(symbol === 'EURUSD' ? 5 : 2),
+        stop: isNearHigh
+          ? (data.twoWeekHigh * 1.005).toFixed(symbol === 'EURUSD' ? 5 : 2)
+          : (data.twoWeekLow * 0.995).toFixed(symbol === 'EURUSD' ? 5 : 2),
+        oneR: (weeklyRange * 0.5).toFixed(2),
+        tp1: (current + (direction === 'long' ? 1 : -1) * weeklyRange * 0.8).toFixed(symbol === 'EURUSD' ? 5 : 2),
+        tp2: (current + (direction === 'long' ? 1 : -1) * weeklyRange * 1.2).toFixed(symbol === 'EURUSD' ? 5 : 2),
+        probability: Math.min(prob, 65),
+        confidence: Math.round(prob * 1.2),
+        status: 'watch',
+        pnlR: 0,
+        winRate: 56,
+        timeframe: 'long',
+        motivations: [
+          `${rejectionType} con wick lunga visibile`,
+          `Setup swing multi-day: target 1.5-2R`,
+          `Trailing stop dopo +1R per runner position`
+        ]
+      });
+    }
+  });
+
+  return signals.filter(s => s.probability >= 50).slice(0, 4);
 };
 
 // Macro events
@@ -227,136 +356,134 @@ const macroEvents = [
 
 const SignalCard = ({ signal }) => {
   const isLong = signal.direction === 'long';
-  
+
   return (
-    <Card className={cn(
-      "bg-card/80 border-border/50",
+    <div className={cn(
+      "glass-enhanced p-4 font-apple",
       signal.status === 'active' && "border-primary/50"
     )}>
-      <CardContent className="p-4">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {isLong ? (
-              <TrendingUp className="w-5 h-5 text-primary" />
-            ) : (
-              <TrendingDown className="w-5 h-5 text-red-500" />
-            )}
-            <span className="font-bold">{signal.asset}</span>
-            <span className="text-xs text-muted-foreground">({signal.assetName})</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={cn(
-              "px-2 py-0.5 rounded text-xs font-medium",
-              signal.status === 'watch' && "bg-yellow-500/20 text-yellow-400",
-              signal.status === 'active' && "bg-primary/20 text-primary",
-              signal.status === 'closed' && "bg-muted text-muted-foreground"
-            )}>
-              {signal.status === 'watch' ? <Eye className="w-3 h-3 inline mr-1" /> : 
-               signal.status === 'active' ? <Zap className="w-3 h-3 inline mr-1" /> :
-               <CheckCircle2 className="w-3 h-3 inline mr-1" />}
-              {signal.status.toUpperCase()}
-            </span>
-            <span className={cn(
-              "px-2 py-0.5 rounded-full text-xs font-semibold",
-              isLong ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-400"
-            )}>
-              {signal.direction.toUpperCase()}
-            </span>
-          </div>
-        </div>
-
-        {/* Strategy */}
-        <div className="mb-3 p-2 bg-secondary/30 rounded-lg">
-          <p className="text-xs text-muted-foreground">Strategia {signal.strategy}</p>
-          <p className="text-sm font-medium">{signal.strategyName}</p>
-        </div>
-
-        {/* Trigger */}
-        <div className="mb-3">
-          <p className="text-xs text-muted-foreground mb-1">Trigger</p>
-          <p className="text-sm">{signal.trigger}</p>
-        </div>
-
-        {/* Levels Grid */}
-        <div className="grid grid-cols-4 gap-2 mb-3">
-          <div className="text-center p-2 bg-secondary/30 rounded">
-            <p className="text-xs text-muted-foreground">Entry</p>
-            <p className="font-semibold text-sm">{signal.entry}</p>
-          </div>
-          <div className="text-center p-2 bg-red-500/10 rounded">
-            <p className="text-xs text-muted-foreground">Stop</p>
-            <p className="font-semibold text-sm text-red-400">{signal.stop}</p>
-          </div>
-          <div className="text-center p-2 bg-primary/10 rounded">
-            <p className="text-xs text-muted-foreground">TP1 (1.2R)</p>
-            <p className="font-semibold text-sm text-primary">{signal.tp1}</p>
-          </div>
-          <div className="text-center p-2 bg-primary/5 rounded">
-            <p className="text-xs text-muted-foreground">TP2 (1.3R)</p>
-            <p className="font-semibold text-sm text-primary/70">{signal.tp2}</p>
-          </div>
-        </div>
-
-        {/* 1R Info */}
-        <div className="flex items-center justify-between mb-3 text-sm">
-          <span className="text-muted-foreground">1R = {signal.oneR} pts</span>
-          {signal.status === 'active' && (
-            <span className={cn(
-              "font-bold",
-              signal.pnlR >= 0 ? "text-primary" : "text-red-400"
-            )}>
-              P&L: {signal.pnlR >= 0 ? '+' : ''}{signal.pnlR.toFixed(2)}R
-            </span>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {isLong ? (
+            <TrendingUp className="w-5 h-5 text-primary" />
+          ) : (
+            <TrendingDown className="w-5 h-5 text-red-500" />
           )}
+          <span className="font-bold">{signal.asset}</span>
+          <span className="text-xs text-muted-foreground">({signal.assetName})</span>
         </div>
+        <div className="flex items-center gap-2">
+          <span className={cn(
+            "px-2 py-0.5 rounded text-xs font-medium",
+            signal.status === 'watch' && "bg-yellow-500/20 text-yellow-400",
+            signal.status === 'active' && "bg-primary/20 text-primary",
+            signal.status === 'closed' && "bg-muted text-muted-foreground"
+          )}>
+            {signal.status === 'watch' ? <Eye className="w-3 h-3 inline mr-1" /> :
+              signal.status === 'active' ? <Zap className="w-3 h-3 inline mr-1" /> :
+                <CheckCircle2 className="w-3 h-3 inline mr-1" />}
+            {signal.status.toUpperCase()}
+          </span>
+          <span className={cn(
+            "px-2 py-0.5 rounded-full text-xs font-semibold",
+            isLong ? "bg-primary/20 text-primary" : "bg-red-500/20 text-red-400"
+          )}>
+            {signal.direction.toUpperCase()}
+          </span>
+        </div>
+      </div>
 
-        {/* Probability & Confidence */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          <div className="p-2 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Probabilità</p>
-            <div className="flex items-center gap-2">
-              <span className={cn(
-                "text-xl font-bold",
-                signal.probability >= 65 ? "text-primary" : 
+      {/* Strategy */}
+      <div className="mb-3 p-2 bg-white/5 rounded-lg">
+        <p className="text-xs text-muted-foreground">Strategia {signal.strategy}</p>
+        <p className="text-sm font-medium">{signal.strategyName}</p>
+      </div>
+
+      {/* Trigger */}
+      <div className="mb-3">
+        <p className="text-xs text-muted-foreground mb-1">Trigger</p>
+        <p className="text-sm">{signal.trigger}</p>
+      </div>
+
+      {/* Levels Grid */}
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        <div className="text-center p-2 bg-white/5 rounded">
+          <p className="text-xs text-muted-foreground">Entry</p>
+          <p className="font-semibold text-sm">{signal.entry}</p>
+        </div>
+        <div className="text-center p-2 bg-red-500/10 rounded">
+          <p className="text-xs text-muted-foreground">Stop</p>
+          <p className="font-semibold text-sm text-red-400">{signal.stop}</p>
+        </div>
+        <div className="text-center p-2 bg-primary/10 rounded">
+          <p className="text-xs text-muted-foreground">TP1 (1.2R)</p>
+          <p className="font-semibold text-sm text-primary">{signal.tp1}</p>
+        </div>
+        <div className="text-center p-2 bg-primary/5 rounded">
+          <p className="text-xs text-muted-foreground">TP2 (1.3R)</p>
+          <p className="font-semibold text-sm text-primary/70">{signal.tp2}</p>
+        </div>
+      </div>
+
+      {/* 1R Info */}
+      <div className="flex items-center justify-between mb-3 text-sm">
+        <span className="text-muted-foreground">1R = {signal.oneR} pts</span>
+        {signal.status === 'active' && (
+          <span className={cn(
+            "font-bold",
+            signal.pnlR >= 0 ? "text-primary" : "text-red-400"
+          )}>
+            P&L: {signal.pnlR >= 0 ? '+' : ''}{signal.pnlR.toFixed(2)}R
+          </span>
+        )}
+      </div>
+
+      {/* Probability & Confidence */}
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div className="p-2 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground mb-1">Probabilità</p>
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "text-xl font-bold",
+              signal.probability >= 65 ? "text-primary" :
                 signal.probability >= 55 ? "text-yellow-400" : "text-red-400"
-              )}>
-                {signal.probability}%
-              </span>
-              {signal.probChange && (
-                <span className={cn(
-                  "text-xs",
-                  signal.probChange === 'up' ? "text-primary" : 
+            )}>
+              {signal.probability}%
+            </span>
+            {signal.probChange && (
+              <span className={cn(
+                "text-xs",
+                signal.probChange === 'up' ? "text-primary" :
                   signal.probChange === 'down' ? "text-red-400" : "text-muted-foreground"
-                )}>
-                  {signal.probChange === 'up' ? <ArrowUp className="w-3 h-3" /> :
-                   signal.probChange === 'down' ? <ArrowDown className="w-3 h-3" /> :
-                   <Minus className="w-3 h-3" />}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="p-2 bg-secondary/30 rounded-lg">
-            <p className="text-xs text-muted-foreground mb-1">Confidence</p>
-            <span className="text-xl font-bold">{signal.confidence}</span>
-            <span className="text-xs text-muted-foreground">/100</span>
+              )}>
+                {signal.probChange === 'up' ? <ArrowUp className="w-3 h-3" /> :
+                  signal.probChange === 'down' ? <ArrowDown className="w-3 h-3" /> :
+                    <Minus className="w-3 h-3" />}
+              </span>
+            )}
           </div>
         </div>
+        <div className="p-2 bg-white/5 rounded-lg">
+          <p className="text-xs text-muted-foreground mb-1">Confidence</p>
+          <span className="text-xl font-bold">{signal.confidence}</span>
+          <span className="text-xs text-muted-foreground">/100</span>
+        </div>
+      </div>
 
-        {/* Motivations */}
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Motivazione</p>
-          <ul className="text-xs space-y-1">
-            {signal.motivations.map((m, i) => (
-              <li key={i} className="flex items-start gap-1">
-                <span className="text-primary">•</span>
-                <span>{m}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Motivations */}
+      <div>
+        <p className="text-xs text-muted-foreground mb-1">Motivazione</p>
+        <ul className="text-xs space-y-1">
+          {signal.motivations.map((m, i) => (
+            <li key={i} className="flex items-start gap-1">
+              <span className="text-primary">•</span>
+              <span>{m}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 };
 
@@ -375,19 +502,41 @@ export default function ReportPage() {
         if (parsed.date === today) {
           return parsed.signals;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     return [];
   });
 
-  // Generate and persist signals (max 2 per asset per day)
+  // Generate and persist signals (max 2 per asset per day) based on selected term
   useEffect(() => {
     const today = new Date().toDateString();
-    const newSignals = generateSignals(marketData);
-    
+
+    // Generate signals based on selected term
+    let newSignals;
+    if (term === 'short') {
+      newSignals = generateSignals(marketData);
+    } else if (term === 'medium') {
+      newSignals = generateMediumTermSignals(marketData);
+    } else {
+      newSignals = generateLongTermSignals(marketData);
+    }
+
     // If we have persisted signals for today, update prices only
-    if (todaySignals.length > 0) {
-      const updatedSignals = todaySignals.map(sig => {
+    const storageKey = `karion_${term}_signals`;
+    const stored = localStorage.getItem(storageKey);
+    let persistedSignals = [];
+
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.date === today) {
+          persistedSignals = parsed.signals;
+        }
+      } catch (e) { }
+    }
+
+    if (persistedSignals.length > 0) {
+      const updatedSignals = persistedSignals.map(sig => {
         const assetData = marketData.assets[sig.asset];
         if (assetData) {
           return {
@@ -397,13 +546,12 @@ export default function ReportPage() {
         }
         return sig;
       });
-      setTodaySignals(updatedSignals);
       setSignals(updatedSignals);
     } else {
       // First time today - generate max 2 signals per asset
       const limitedSignals = [];
       const assetCounts = {};
-      
+
       newSignals.forEach(sig => {
         const count = assetCounts[sig.asset] || 0;
         if (count < 2) {
@@ -415,17 +563,16 @@ export default function ReportPage() {
           assetCounts[sig.asset] = count + 1;
         }
       });
-      
+
       // Persist to localStorage
-      localStorage.setItem('karion_daily_signals', JSON.stringify({
+      localStorage.setItem(storageKey, JSON.stringify({
         date: today,
         signals: limitedSignals
       }));
-      
-      setTodaySignals(limitedSignals);
+
       setSignals(limitedSignals);
     }
-  }, [marketData]);
+  }, [marketData, term]);
 
   const refreshData = () => {
     setIsLoading(true);
@@ -439,10 +586,10 @@ export default function ReportPage() {
   const { vix, assets } = marketData;
 
   return (
-    <div className="space-y-6 fade-in" data-testid="report-page">
+    <div className="space-y-6 fade-in font-apple" data-testid="report-page">
       {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
@@ -455,8 +602,8 @@ export default function ReportPage() {
             Analisi strategica basata su regole • Ultimo update: {marketData.lastUpdate}
           </p>
         </div>
-        
-        <Button 
+
+        <Button
           onClick={refreshData}
           disabled={isLoading}
           className="rounded-xl bg-primary hover:bg-primary/90"
@@ -469,9 +616,9 @@ export default function ReportPage() {
       {/* Term Selection */}
       <div className="flex items-center gap-3">
         {[
-          { id: 'short', label: 'Short-term (1-2d)', active: true },
-          { id: 'medium', label: 'Medium-term (1-2w)', active: false },
-          { id: 'long', label: 'Long-term (1-4w)', active: false }
+          { id: 'short', label: 'Short-term (1-2d)', active: true, strategies: 'S1, S2, VG' },
+          { id: 'medium', label: 'Medium-term (1-2w)', active: true, strategies: 'GM, RV' },
+          { id: 'long', label: 'Long-term (1-4w)', active: true, strategies: 'MD' }
         ].map((t) => (
           <button
             key={t.id}
@@ -479,8 +626,8 @@ export default function ReportPage() {
             disabled={!t.active}
             className={cn(
               "px-4 py-2 rounded-xl text-sm font-medium transition-all",
-              term === t.id 
-                ? "bg-primary text-primary-foreground" 
+              term === t.id
+                ? "bg-primary text-primary-foreground"
                 : t.active
                   ? "bg-card border border-border hover:border-primary/50"
                   : "bg-card/50 border border-border/50 text-muted-foreground cursor-not-allowed"
@@ -494,7 +641,7 @@ export default function ReportPage() {
 
       {/* Main Tabs */}
       <Tabs defaultValue="signals" className="space-y-4">
-        <TabsList className="bg-secondary/50 p-1 rounded-xl flex-wrap h-auto">
+        <TabsList className="bg-transparent p-1 gap-1 flex-wrap h-auto tab-border-highlight glass-edge fine-gray-border">
           <TabsTrigger value="macro" className="rounded-lg">
             <Calendar className="w-4 h-4 mr-2" />
             Macro & Calendario
@@ -509,7 +656,7 @@ export default function ReportPage() {
           </TabsTrigger>
           <TabsTrigger value="signals" className="rounded-lg">
             <Zap className="w-4 h-4 mr-2" />
-            Segnali Oggi
+            Report Posizionamenti
           </TabsTrigger>
           <TabsTrigger value="updates" className="rounded-lg">
             <Clock className="w-4 h-4 mr-2" />
@@ -519,23 +666,21 @@ export default function ReportPage() {
 
         {/* Tab A - Macro & Calendario */}
         <TabsContent value="macro" className="space-y-4">
-          <Card className="bg-card/80 border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-primary" />
-                Eventi del Giorno (USA + Eurozona)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div className="glass-enhanced p-6">
+            <h3 className="font-semibold flex items-center gap-2 mb-4">
+              <Calendar className="w-5 h-5 text-primary" />
+              Eventi del Giorno (USA + Eurozona)
+            </h3>
+            <div>
               <div className="space-y-2">
                 {macroEvents.map((event, i) => (
-                  <div 
+                  <div
                     key={i}
                     className={cn(
                       "flex items-center justify-between p-3 rounded-lg",
                       event.impact === 'high' ? "bg-red-500/10 border border-red-500/20" :
-                      event.impact === 'medium' ? "bg-yellow-500/10 border border-yellow-500/20" :
-                      "bg-secondary/30"
+                        event.impact === 'medium' ? "bg-yellow-500/10 border border-yellow-500/20" :
+                          "bg-white/5"
                     )}
                   >
                     <div className="flex items-center gap-4">
@@ -550,15 +695,15 @@ export default function ReportPage() {
                     <span className={cn(
                       "px-2 py-1 rounded text-xs font-medium",
                       event.impact === 'high' ? "bg-red-500/20 text-red-400" :
-                      event.impact === 'medium' ? "bg-yellow-500/20 text-yellow-400" :
-                      "bg-secondary text-muted-foreground"
+                        event.impact === 'medium' ? "bg-yellow-500/20 text-yellow-400" :
+                          "bg-secondary text-muted-foreground"
                     )}>
                       {event.impact.toUpperCase()}
                     </span>
                   </div>
                 ))}
               </div>
-              
+
               {/* No-Trade Window */}
               <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
                 <p className="text-sm font-medium text-red-400 flex items-center gap-2">
@@ -569,78 +714,70 @@ export default function ReportPage() {
                   Evitare entry 15 min prima e dopo eventi HIGH impact (es. 19:45-20:15 per FOMC Speech)
                 </p>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Tab B - VIX Regime */}
         <TabsContent value="vix" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-card/80 border-border/50">
-              <CardContent className="p-6 text-center">
-                <Activity className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <p className="text-xs text-muted-foreground mb-1">VIX Attuale</p>
-                <p className="text-4xl font-bold">{vix.current}</p>
-                <p className={cn(
-                  "text-sm mt-1",
-                  parseFloat(vix.change) > 0 ? "text-red-400" : "text-primary"
-                )}>
-                  {parseFloat(vix.change) > 0 ? '+' : ''}{vix.change} vs ieri
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="bg-card/80 border-border/50">
-              <CardContent className="p-6 text-center">
-                {vix.direction === 'rising' ? (
-                  <ArrowUp className="w-8 h-8 mx-auto mb-2 text-red-400" />
-                ) : vix.direction === 'falling' ? (
-                  <ArrowDown className="w-8 h-8 mx-auto mb-2 text-primary" />
-                ) : (
-                  <Minus className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
-                )}
-                <p className="text-xs text-muted-foreground mb-1">Direzione Intraday</p>
-                <p className="text-2xl font-bold capitalize">{vix.direction}</p>
-              </CardContent>
-            </Card>
-            
-            <Card className={cn(
-              "border-border/50",
-              vix.regime === 'risk-on' ? "bg-primary/10" :
-              vix.regime === 'risk-off' ? "bg-red-500/10" :
-              "bg-yellow-500/10"
+            <div className="glass-enhanced p-6 text-center">
+              <Activity className="w-8 h-8 mx-auto mb-2 text-primary" />
+              <p className="text-xs text-muted-foreground mb-1">VIX Attuale</p>
+              <p className="text-4xl font-bold">{vix.current}</p>
+              <p className={cn(
+                "text-sm mt-1",
+                parseFloat(vix.change) > 0 ? "text-red-400" : "text-primary"
+              )}>
+                {parseFloat(vix.change) > 0 ? '+' : ''}{vix.change} vs ieri
+              </p>
+            </div>
+
+            <div className="glass-enhanced p-6 text-center">
+              {vix.direction === 'rising' ? (
+                <ArrowUp className="w-8 h-8 mx-auto mb-2 text-red-400" />
+              ) : vix.direction === 'falling' ? (
+                <ArrowDown className="w-8 h-8 mx-auto mb-2 text-primary" />
+              ) : (
+                <Minus className="w-8 h-8 mx-auto mb-2 text-yellow-400" />
+              )}
+              <p className="text-xs text-muted-foreground mb-1">Direzione Intraday</p>
+              <p className="text-2xl font-bold capitalize">{vix.direction}</p>
+            </div>
+
+            <div className={cn(
+              "glass-enhanced p-6 text-center",
+              "bg-yellow-500/10",
+              "fine-gray-border",
+              "glass-edge"
             )}>
-              <CardContent className="p-6 text-center">
-                <Shield className={cn(
-                  "w-8 h-8 mx-auto mb-2",
-                  vix.regime === 'risk-on' ? "text-primary" :
+              <Shield className={cn(
+                "w-8 h-8 mx-auto mb-2",
+                vix.regime === 'risk-on' ? "text-primary" :
                   vix.regime === 'risk-off' ? "text-red-400" :
-                  "text-yellow-400"
-                )} />
-                <p className="text-xs text-muted-foreground mb-1">Regime</p>
-                <p className={cn(
-                  "text-2xl font-bold uppercase",
-                  vix.regime === 'risk-on' ? "text-primary" :
+                    "text-yellow-400"
+              )} />
+              <p className="text-xs text-muted-foreground mb-1">Regime</p>
+              <p className={cn(
+                "text-2xl font-bold uppercase",
+                vix.regime === 'risk-on' ? "text-primary" :
                   vix.regime === 'risk-off' ? "text-red-400" :
-                  "text-yellow-400"
-                )}>
-                  {vix.regime}
-                </p>
-              </CardContent>
-            </Card>
+                    "text-yellow-400"
+              )}>
+                {vix.regime}
+              </p>
+            </div>
           </div>
 
           {/* VIX Interpretation */}
-          <Card className="bg-card/80 border-border/50">
-            <CardContent className="p-4">
-              <h4 className="font-medium mb-2">Interpretazione</h4>
-              <p className="text-sm text-muted-foreground">
-                {vix.regime === 'risk-on' && 'VIX sotto 20 indica bassa volatilità attesa. Favorisce strategie mean-reversion sugli indici. Long bias su NQ/S&P più probabile.'}
-                {vix.regime === 'risk-off' && 'VIX sopra 25 indica alta volatilità attesa (fear). Cautela su long risk-on. Favorisce XAU come safe-haven. Ridurre size.'}
-                {vix.regime === 'neutral' && 'VIX in zona neutrale (20-25). Monitorare direzione per conferma. Applicare strategie con cautela e stop stretti.'}
-              </p>
-            </CardContent>
-          </Card>
+          <div className="glass-enhanced p-4">
+            <h4 className="font-medium mb-2">Interpretazione</h4>
+            <p className="text-sm text-muted-foreground">
+              {vix.regime === 'risk-on' && 'VIX sotto 20 indica bassa volatilità attesa. Favorisce strategie mean-reversion sugli indici. Long bias su NQ/S&P più probabile.'}
+              {vix.regime === 'risk-off' && 'VIX sopra 25 indica alta volatilità attesa (fear). Cautela su long risk-on. Favorisce XAU come safe-haven. Ridurre size.'}
+              {vix.regime === 'neutral' && 'VIX in zona neutrale (20-25). Monitorare direzione per conferma. Applicare strategie con cautela e stop stretti.'}
+            </p>
+          </div>
         </TabsContent>
 
         {/* Tab C - Livelli Premium */}
@@ -659,26 +796,26 @@ export default function ReportPage() {
                 <CardContent>
                   <div className="space-y-2 text-sm">
                     {/* Weekly */}
-                    <div className="grid grid-cols-3 gap-2 p-2 bg-secondary/30 rounded">
+                    <div className="grid grid-cols-3 gap-2 p-2 bg-white/5 rounded subtle-divider">
                       <span className="text-muted-foreground">Weekly</span>
                       <span>H: {data.weeklyHigh} ({calcDistancePercent(data.current, data.weeklyHigh)}%)</span>
                       <span>L: {data.weeklyLow} ({calcDistancePercent(data.current, data.weeklyLow)}%)</span>
                     </div>
                     {/* 2-Week */}
-                    <div className="grid grid-cols-3 gap-2 p-2 bg-secondary/30 rounded">
+                    <div className="grid grid-cols-3 gap-2 p-2 bg-white/5 rounded subtle-divider">
                       <span className="text-muted-foreground">2-Week</span>
                       <span>H: {data.twoWeekHigh} ({calcDistancePercent(data.current, data.twoWeekHigh)}%)</span>
                       <span>L: {data.twoWeekLow} ({calcDistancePercent(data.current, data.twoWeekLow)}%)</span>
                     </div>
                     {/* Asia */}
-                    <div className="grid grid-cols-4 gap-2 p-2 bg-secondary/30 rounded">
+                    <div className="grid grid-cols-4 gap-2 p-2 bg-white/5 rounded subtle-divider">
                       <span className="text-muted-foreground">Asia</span>
                       <span>H: {data.asiaHigh}</span>
                       <span>L: {data.asiaLow}</span>
                       <span>C: {data.asiaClose}</span>
                     </div>
                     {/* Yesterday */}
-                    <div className="grid grid-cols-4 gap-2 p-2 bg-secondary/30 rounded">
+                    <div className="grid grid-cols-4 gap-2 p-2 bg-white/5 rounded subtle-divider">
                       <span className="text-muted-foreground">Ieri</span>
                       <span>H: {data.yesterdayHigh}</span>
                       <span>L: {data.yesterdayLow}</span>
@@ -691,7 +828,7 @@ export default function ReportPage() {
           </div>
         </TabsContent>
 
-        {/* Tab D - Segnali Oggi */}
+        {/* Tab D - Report Posizionamenti */}
         <TabsContent value="signals" className="space-y-4">
           {signals.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -734,15 +871,15 @@ export default function ReportPage() {
             <CardContent>
               <div className="space-y-3">
                 {signals.map(signal => (
-                  <div key={signal.id} className="p-3 bg-secondary/30 rounded-lg">
+                  <div key={signal.id} className="p-3 bg-white/5 rounded-lg">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="font-bold">{signal.asset}</span>
                         <span className={cn(
                           "px-2 py-0.5 rounded text-xs",
                           signal.status === 'watch' ? "bg-yellow-500/20 text-yellow-400" :
-                          signal.status === 'active' ? "bg-primary/20 text-primary" :
-                          "bg-muted text-muted-foreground"
+                            signal.status === 'active' ? "bg-primary/20 text-primary" :
+                              "bg-muted text-muted-foreground"
                         )}>
                           {signal.status}
                         </span>

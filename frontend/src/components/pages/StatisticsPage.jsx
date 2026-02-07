@@ -235,7 +235,7 @@ export default function StatisticsPage() {
             </div>
 
             {analysis && (
-              <div className="mt-4 p-4 bg-secondary/50 rounded-xl">
+              <div className="mt-4 p-4 bg-white/5 rounded-xl">
                 <p className="font-medium mb-2">{analysis.filename}</p>
                 <p className="text-sm text-muted-foreground">
                   {analysis.stats?.page_count} pagine analizzate
@@ -265,7 +265,7 @@ export default function StatisticsPage() {
                   type="number"
                   value={stats.winRate}
                   onChange={(e) => setStats({...stats, winRate: parseFloat(e.target.value) || 0})}
-                  className="bg-secondary/50"
+                  className="bg-white/5"
                   min={1}
                   max={99}
                 />
@@ -276,7 +276,7 @@ export default function StatisticsPage() {
                   type="number"
                   value={stats.avgWin}
                   onChange={(e) => setStats({...stats, avgWin: parseFloat(e.target.value) || 0})}
-                  className="bg-secondary/50"
+                  className="bg-white/5"
                   step={0.1}
                 />
               </div>
@@ -286,7 +286,7 @@ export default function StatisticsPage() {
                   type="number"
                   value={stats.avgLoss}
                   onChange={(e) => setStats({...stats, avgLoss: parseFloat(e.target.value) || 0})}
-                  className="bg-secondary/50"
+                  className="bg-white/5"
                   step={0.1}
                 />
               </div>
@@ -296,7 +296,7 @@ export default function StatisticsPage() {
                   type="number"
                   value={stats.totalTrades}
                   onChange={(e) => setStats({...stats, totalTrades: parseInt(e.target.value) || 0})}
-                  className="bg-secondary/50"
+                  className="bg-white/5"
                 />
               </div>
               <div className="space-y-2">
@@ -305,7 +305,7 @@ export default function StatisticsPage() {
                   type="number"
                   value={stats.profitFactor}
                   onChange={(e) => setStats({...stats, profitFactor: parseFloat(e.target.value) || 0})}
-                  className="bg-secondary/50"
+                  className="bg-white/5"
                   step={0.1}
                 />
               </div>
@@ -315,7 +315,7 @@ export default function StatisticsPage() {
                   type="number"
                   value={stats.maxDD}
                   onChange={(e) => setStats({...stats, maxDD: parseFloat(e.target.value) || 0})}
-                  className="bg-secondary/50"
+                  className="bg-white/5"
                 />
               </div>
             </div>
@@ -336,7 +336,7 @@ export default function StatisticsPage() {
             value={thoughts}
             onChange={(e) => setThoughts(e.target.value)}
             placeholder="Scrivi i tuoi pensieri sui trade di oggi... L'AI analizzerà e ti darà consigli personalizzati."
-            className="bg-secondary/50 min-h-[150px]"
+            className="bg-white/5 min-h-[150px]"
             data-testid="thoughts-textarea"
           />
           <Button 

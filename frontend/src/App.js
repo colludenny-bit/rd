@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import './i18n';
@@ -6,9 +6,11 @@ import './App.css';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { MarketProvider } from './contexts/MarketContext';
 
 // Layout
 import Layout from './components/layout/Layout';
+import { LockScreen } from './components/layout/LockScreen';
 
 // Pages
 import AuthPage from './components/pages/AuthPage';
@@ -31,6 +33,7 @@ import OptionsFlowPage from './components/pages/OptionsFlowPage';
 import MacroEconomyPage from './components/pages/MacroEconomyPage';
 import CryptoPage from './components/pages/CryptoPage';
 import CalculatorPage from './components/pages/CalculatorPage';
+import PerformancePage from './components/pages/PerformancePage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -104,6 +107,7 @@ function AppRoutes() {
         <Route path="cot" element={<COTPage />} />
         <Route path="options" element={<OptionsFlowPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
+        <Route path="performance" element={<PerformancePage />} />
         <Route path="montecarlo" element={<MonteCarloPage />} />
         <Route path="calculator" element={<CalculatorPage />} />
         <Route path="crypto" element={<CryptoPage />} />
@@ -122,24 +126,32 @@ function AppRoutes() {
 }
 
 function App() {
+  const [isLocked, setIsLocked] = useState(true);
+
   return (
     <ThemeProvider>
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-          <Toaster 
-            position="top-right" 
-            richColors 
-            theme="dark"
-            toastOptions={{
-              style: {
-                background: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                color: 'hsl(var(--foreground))',
-              }
-            }}
-          />
-        </BrowserRouter>
+        <MarketProvider>
+          {isLocked ? (
+            <LockScreen onUnlock={() => setIsLocked(false)} />
+          ) : (
+            <BrowserRouter>
+              <AppRoutes />
+              <Toaster
+                position="top-right"
+                richColors
+                theme="dark"
+                toastOptions={{
+                  style: {
+                    background: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    color: 'hsl(var(--foreground))',
+                  }
+                }}
+              />
+            </BrowserRouter>
+          )}
+        </MarketProvider>
       </AuthProvider>
     </ThemeProvider>
   );

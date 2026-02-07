@@ -8,8 +8,8 @@ import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { cn } from '../../lib/utils';
-import { 
-  Target, Plus, Zap, TrendingUp, TrendingDown, 
+import {
+  Target, Plus, Zap, TrendingUp, TrendingDown,
   Percent, Shield, AlertTriangle, ArrowRight, Download,
   Play, BarChart3, Activity
 } from 'lucide-react';
@@ -105,12 +105,142 @@ const predefinedStrategies = [
       'Divergenza tra mercati → Prob trade S1/S2 ↓'
     ],
     isModulator: true
+  },
+  // Advanced Strategies
+  {
+    id: 'gamma-magnet',
+    name: 'GammaMagnet Convergence',
+    shortName: 'GM',
+    assets: ['NQ', 'S&P', 'SPY', 'QQQ'],
+    winRate: 68,
+    avgWinR: 1.24,
+    avgLossR: 1.0,
+    riskReward: 2.15,
+    maxDD: 8,
+    description: 'Sfrutta la convergenza del prezzo verso strike con alta gamma opzionaria. Market makers coprono, creando magneti di prezzo verso 0DTE strikes.',
+    rules: [
+      'Identifica strike con max OI opzioni 0DTE',
+      'Entry quando prezzo a ±0.5% dallo strike target',
+      'VIX deve essere < VVIX (volatilità compressa)',
+      'Stop oltre max/min della candela di trigger',
+      'TP1: raggiungimento strike | TP2: +1.24R'
+    ],
+    triggers: [
+      'Prezzo entro 0.5% da strike ad alta gamma',
+      'Market makers in delta hedging attivo',
+      'Volume crescente verso lo strike',
+      'VIX < VVIX (compressione vol)'
+    ],
+    probabilityFactors: [
+      'Alta OI sullo strike → Prob ↑',
+      'VIX in calo → Prob ↑',
+      'Rottura dello strike con volume → Prob ↓',
+      'FOMC/CPI entro 24h → Prob ↓'
+    ],
+    isAdvanced: true
+  },
+  {
+    id: 'rate-vol-alignment',
+    name: 'Rate-Volatility Alignment',
+    shortName: 'RV',
+    assets: ['NQ', 'S&P', 'TLT', 'EURUSD'],
+    winRate: 62,
+    avgWinR: 0.98,
+    avgLossR: 1.0,
+    riskReward: 1.62,
+    maxDD: 12,
+    description: 'Allinea direzione trade con movimento tassi vs volatilità. Long risk quando yield calano + VIX cala. Short quando divergono.',
+    rules: [
+      'Check correlazione 2Y/10Y yield vs VIX',
+      'Long equity quando: yield ↓ + VIX ↓ (risk-on)',
+      'Short equity quando: yield ↑ + VIX ↑ (stress)',
+      'Evita se yield e VIX divergono',
+      'Size ridotta 50% se correlazione < 0.7'
+    ],
+    triggers: [
+      'Yield 2Y cambia direzione intraday',
+      'VIX conferma direzione (stesso verso)',
+      'DXY non diverge dal movimento',
+      'No eventi FED imminenti'
+    ],
+    probabilityFactors: [
+      'Correlazione yield-VIX > 0.8 → Prob ↑',
+      'Conferma DXY → Prob ↑',
+      'Divergenza asset → Prob ↓',
+      'Curva yield inverte → cautela'
+    ],
+    isAdvanced: true
+  },
+  {
+    id: 'volguard-mr',
+    name: 'VolGuard Mean-Reversion',
+    shortName: 'VG',
+    assets: ['NQ', 'S&P', 'SPX'],
+    winRate: 72,
+    avgWinR: 0.65,
+    avgLossR: 1.0,
+    riskReward: 1.67,
+    maxDD: 5,
+    description: 'Mean-reversion intraday con stop dinamico basato su VIX. Più il VIX è basso, più aggressivo il fade. Scalping protetto.',
+    rules: [
+      'Attiva solo se VIX < 18 (low vol regime)',
+      'Fade estremi 1.5 ATR da VWAP intraday',
+      'Stop dinamico: 0.5 ATR se VIX < 15, 0.8 ATR se VIX 15-18',
+      'TP = ritorno a VWAP (sempre)',
+      'Max 3 trade/giorno per asset'
+    ],
+    triggers: [
+      'VIX < 18 (regime low vol confermato)',
+      'Prezzo esteso > 1.5 ATR da VWAP',
+      'RSI 5min < 20 o > 80',
+      'Volume exhaustion visibile'
+    ],
+    probabilityFactors: [
+      'VIX < 15 → Prob ↑↑',
+      'Primo trade del giorno → Prob ↑',
+      'VIX in aumento → Prob ↓',
+      'Terzo trade consecutivo → Prob ↓↓'
+    ],
+    isAdvanced: true
+  },
+  {
+    id: 'multi-day-ra',
+    name: 'Multi-Day Rejection/Acceptance',
+    shortName: 'MD',
+    assets: ['NQ', 'S&P', 'XAUUSD', 'BTC'],
+    winRate: 56,
+    avgWinR: 1.85,
+    avgLossR: 1.0,
+    riskReward: 2.36,
+    maxDD: 15,
+    description: 'Swing trade su rottura/rigetto multi-day. Attende accettazione o rigetto sopra/sotto livello chiave weekly.',
+    rules: [
+      'Identifica livello weekly (H/L 2 settimane)',
+      'Attendi test + close daily sopra/sotto',
+      'Rejection: chiusura rientra → fade direction',
+      'Acceptance: 2 chiusure consecutive → trend follow',
+      'Stop oltre il max/min del pattern',
+      'TP1: centro range weekly | TP2: lato opposto'
+    ],
+    triggers: [
+      'Prezzo su weekly H o L',
+      'Prima chiusura daily oltre il livello',
+      'ATR daily elevato (>1.5x media)',
+      'Volume sopra media weekly'
+    ],
+    probabilityFactors: [
+      'Rejection con wick lunga → Prob fade ↑↑',
+      'Acceptance con close forte → Prob continuation ↑↑',
+      'Inside day dopo rottura → attendi',
+      'VIX in spike → aspetta stabilizzazione'
+    ],
+    isAdvanced: true
   }
 ];
 
 const StrategyCard = ({ strategy, onExportToMonteCarlo }) => {
   const navigate = useNavigate();
-  
+
   const handleExport = () => {
     // Store strategy params in localStorage for Monte Carlo
     const monteCarloParams = {
@@ -125,9 +255,9 @@ const StrategyCard = ({ strategy, onExportToMonteCarlo }) => {
   };
 
   return (
-    <Card className="bg-card/80 border-border/50">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center justify-between">
+    <div className="glass-enhanced p-0 font-apple">
+      <div className="p-4 pb-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold">
               {strategy.shortName}
@@ -144,31 +274,31 @@ const StrategyCard = ({ strategy, onExportToMonteCarlo }) => {
               MODULATORE
             </span>
           )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </div>
+      </div>
+      <div className="p-4 pt-0 space-y-4">
         {/* Description */}
         <p className="text-sm text-muted-foreground">{strategy.description}</p>
 
         {/* Stats Grid - Only for non-modulator strategies */}
         {!strategy.isModulator && (
           <div className="grid grid-cols-4 gap-2">
-            <div className="p-3 bg-secondary/30 rounded-lg text-center">
+            <div className="p-3 bg-white/5 rounded-lg text-center">
               <Percent className="w-4 h-4 mx-auto mb-1 text-primary" />
               <p className="text-xs text-muted-foreground">Win Rate</p>
               <p className="text-xl font-bold text-primary">{strategy.winRate}%</p>
             </div>
-            <div className="p-3 bg-secondary/30 rounded-lg text-center">
+            <div className="p-3 bg-white/5 rounded-lg text-center">
               <TrendingUp className="w-4 h-4 mx-auto mb-1 text-primary" />
               <p className="text-xs text-muted-foreground">Avg Win</p>
               <p className="text-xl font-bold">{strategy.avgWinR}R</p>
             </div>
-            <div className="p-3 bg-secondary/30 rounded-lg text-center">
+            <div className="p-3 bg-white/5 rounded-lg text-center">
               <TrendingDown className="w-4 h-4 mx-auto mb-1 text-red-400" />
               <p className="text-xs text-muted-foreground">Avg Loss</p>
               <p className="text-xl font-bold">{strategy.avgLossR}R</p>
             </div>
-            <div className="p-3 bg-secondary/30 rounded-lg text-center">
+            <div className="p-3 bg-white/5 rounded-lg text-center">
               <Shield className="w-4 h-4 mx-auto mb-1 text-yellow-400" />
               <p className="text-xs text-muted-foreground">Max DD</p>
               <p className="text-xl font-bold">{strategy.maxDD}%</p>
@@ -200,7 +330,7 @@ const StrategyCard = ({ strategy, onExportToMonteCarlo }) => {
           </h4>
           <div className="flex flex-wrap gap-1">
             {strategy.triggers.map((trigger, i) => (
-              <span key={i} className="px-2 py-1 bg-secondary/50 rounded text-xs">
+              <span key={i} className="px-2 py-1 bg-white/5 rounded text-xs">
                 {trigger}
               </span>
             ))}
@@ -225,7 +355,7 @@ const StrategyCard = ({ strategy, onExportToMonteCarlo }) => {
 
         {/* Export Button - Only for strategies with stats */}
         {!strategy.isModulator && (
-          <Button 
+          <Button
             onClick={handleExport}
             className="w-full rounded-xl bg-primary hover:bg-primary/90"
           >
@@ -234,8 +364,8 @@ const StrategyCard = ({ strategy, onExportToMonteCarlo }) => {
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div >
   );
 };
 
@@ -259,7 +389,7 @@ export default function StrategyPage() {
       toast.error('Compila nome e descrizione');
       return;
     }
-    
+
     // Save to localStorage (in production would save to backend)
     const savedStrategies = JSON.parse(localStorage.getItem('customStrategies') || '[]');
     savedStrategies.push({
@@ -272,7 +402,7 @@ export default function StrategyPage() {
       riskReward: (newStrategy.winRate / 100 * newStrategy.avgWinR) / ((1 - newStrategy.winRate / 100) * newStrategy.avgLossR)
     });
     localStorage.setItem('customStrategies', JSON.stringify(savedStrategies));
-    
+
     toast.success('Strategia salvata!');
     setNewStrategy({
       name: '',
@@ -307,10 +437,10 @@ export default function StrategyPage() {
   }))];
 
   return (
-    <div className="space-y-6 fade-in" data-testid="strategy-page">
+    <div className="space-y-6 fade-in font-apple" data-testid="strategy-page">
       {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }} 
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
       >
         <h1 className="text-3xl font-bold flex items-center gap-3">
@@ -324,7 +454,7 @@ export default function StrategyPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="bg-secondary/50 p-1 rounded-xl">
+        <TabsList className="bg-transparent p-1 gap-1">
           <TabsTrigger value="strategies" className="rounded-lg">
             <BarChart3 className="w-4 h-4 mr-2" />
             Strategie ({allStrategies.length})
@@ -360,8 +490,8 @@ export default function StrategyPage() {
           {/* Strategy Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {allStrategies.map(strategy => (
-              <StrategyCard 
-                key={strategy.id} 
+              <StrategyCard
+                key={strategy.id}
                 strategy={strategy}
                 onExportToMonteCarlo={handleExportAndRun}
               />
@@ -369,43 +499,43 @@ export default function StrategyPage() {
           </div>
 
           {/* Risk Management Rules */}
-          <Card className="bg-card/80 border-border/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
+          <div className="glass-enhanced p-4">
+            <div className="pb-2">
+              <h4 className="text-base font-semibold flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-yellow-400" />
                 Regole di Gestione (Tutte le Strategie)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm space-y-2">
+              </h4>
+            </div>
+            <div className="text-sm space-y-2 mt-2">
               <p>• <strong>1R</strong> = distanza entry-stop | <strong>TP1</strong> = +1.2R (obbligatorio) | <strong>TP2</strong> = +1.3R (runner)</p>
               <p>• Max <strong>2 operazioni/giorno</strong> per asset: Trade #1 + Re-entry solo se tesi valida</p>
               <p>• Apri trade solo se <strong>Probabilità ≥55%</strong></p>
               <p>• <strong>Stop a BE</strong> dopo +0.6R profitto</p>
               <p>• <strong>Chiudi anticipato</strong> se probabilità scende sotto 50%</p>
               <p>• <strong>Re-entry</strong> consentito solo se prob torna ≥55%</p>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* New Strategy Form */}
         <TabsContent value="new" className="space-y-4">
-          <Card className="bg-card/80 border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <div className="glass-enhanced p-0">
+            <div className="p-4">
+              <h3 className="font-semibold flex items-center gap-2">
                 <Plus className="w-5 h-5 text-primary" />
                 Crea Nuova Strategia
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </h3>
+            </div>
+            <div className="p-4 pt-0 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Name */}
                 <div className="space-y-2">
                   <Label>Nome Strategia *</Label>
                   <Input
                     value={newStrategy.name}
-                    onChange={(e) => setNewStrategy({...newStrategy, name: e.target.value})}
+                    onChange={(e) => setNewStrategy({ ...newStrategy, name: e.target.value })}
                     placeholder="Es: Breakout Morning"
-                    className="bg-secondary/50"
+                    className="bg-white/5"
                   />
                 </div>
 
@@ -414,9 +544,9 @@ export default function StrategyPage() {
                   <Label>Asset (separati da virgola)</Label>
                   <Input
                     value={newStrategy.assets}
-                    onChange={(e) => setNewStrategy({...newStrategy, assets: e.target.value})}
+                    onChange={(e) => setNewStrategy({ ...newStrategy, assets: e.target.value })}
                     placeholder="NQ, S&P, XAUUSD"
-                    className="bg-secondary/50"
+                    className="bg-white/5"
                   />
                 </div>
               </div>
@@ -426,9 +556,9 @@ export default function StrategyPage() {
                 <Label>Descrizione *</Label>
                 <Textarea
                   value={newStrategy.description}
-                  onChange={(e) => setNewStrategy({...newStrategy, description: e.target.value})}
+                  onChange={(e) => setNewStrategy({ ...newStrategy, description: e.target.value })}
                   placeholder="Descrivi l'obiettivo e la logica della strategia..."
-                  className="bg-secondary/50 min-h-[100px]"
+                  className="bg-white/5 min-h-[100px]"
                 />
               </div>
 
@@ -439,8 +569,8 @@ export default function StrategyPage() {
                   <Input
                     type="number"
                     value={newStrategy.winRate}
-                    onChange={(e) => setNewStrategy({...newStrategy, winRate: parseFloat(e.target.value)})}
-                    className="bg-secondary/50"
+                    onChange={(e) => setNewStrategy({ ...newStrategy, winRate: parseFloat(e.target.value) })}
+                    className="bg-white/5"
                     min={1}
                     max={99}
                   />
@@ -450,8 +580,8 @@ export default function StrategyPage() {
                   <Input
                     type="number"
                     value={newStrategy.avgWinR}
-                    onChange={(e) => setNewStrategy({...newStrategy, avgWinR: parseFloat(e.target.value)})}
-                    className="bg-secondary/50"
+                    onChange={(e) => setNewStrategy({ ...newStrategy, avgWinR: parseFloat(e.target.value) })}
+                    className="bg-white/5"
                     step={0.1}
                     min={0.1}
                   />
@@ -461,8 +591,8 @@ export default function StrategyPage() {
                   <Input
                     type="number"
                     value={newStrategy.avgLossR}
-                    onChange={(e) => setNewStrategy({...newStrategy, avgLossR: parseFloat(e.target.value)})}
-                    className="bg-secondary/50"
+                    onChange={(e) => setNewStrategy({ ...newStrategy, avgLossR: parseFloat(e.target.value) })}
+                    className="bg-white/5"
                     step={0.1}
                     min={0.1}
                   />
@@ -472,8 +602,8 @@ export default function StrategyPage() {
                   <Input
                     type="number"
                     value={newStrategy.maxDD}
-                    onChange={(e) => setNewStrategy({...newStrategy, maxDD: parseFloat(e.target.value)})}
-                    className="bg-secondary/50"
+                    onChange={(e) => setNewStrategy({ ...newStrategy, maxDD: parseFloat(e.target.value) })}
+                    className="bg-white/5"
                     min={1}
                     max={100}
                   />
@@ -485,9 +615,9 @@ export default function StrategyPage() {
                 <Label>Regole (una per riga)</Label>
                 <Textarea
                   value={newStrategy.rules}
-                  onChange={(e) => setNewStrategy({...newStrategy, rules: e.target.value})}
+                  onChange={(e) => setNewStrategy({ ...newStrategy, rules: e.target.value })}
                   placeholder="Entry solo su rejection&#10;Stop oltre il massimo dello spike&#10;TP1 a +1.2R"
-                  className="bg-secondary/50 min-h-[120px] font-mono text-sm"
+                  className="bg-white/5 min-h-[120px] font-mono text-sm"
                 />
               </div>
 
@@ -496,14 +626,14 @@ export default function StrategyPage() {
                 <Label>Trigger (uno per riga)</Label>
                 <Textarea
                   value={newStrategy.triggers}
-                  onChange={(e) => setNewStrategy({...newStrategy, triggers: e.target.value})}
+                  onChange={(e) => setNewStrategy({ ...newStrategy, triggers: e.target.value })}
                   placeholder="Prezzo su zona premium&#10;VIX stabile&#10;No news imminenti"
-                  className="bg-secondary/50 min-h-[100px] font-mono text-sm"
+                  className="bg-white/5 min-h-[100px] font-mono text-sm"
                 />
               </div>
 
               {/* Preview R:R */}
-              <div className="p-4 bg-secondary/30 rounded-xl">
+              <div className="p-4 bg-white/5 rounded-xl">
                 <p className="text-sm text-muted-foreground mb-1">Risk/Reward Stimato</p>
                 <p className="text-2xl font-bold text-primary">
                   {((newStrategy.winRate / 100 * newStrategy.avgWinR) / ((1 - newStrategy.winRate / 100) * newStrategy.avgLossR)).toFixed(2)}
@@ -511,15 +641,15 @@ export default function StrategyPage() {
               </div>
 
               {/* Save Button */}
-              <Button 
+              <Button
                 onClick={handleSaveStrategy}
                 className="w-full rounded-xl bg-primary hover:bg-primary/90"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Salva Strategia
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>
