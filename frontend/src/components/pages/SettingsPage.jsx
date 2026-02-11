@@ -12,12 +12,14 @@ import { cn } from '../../lib/utils';
 import {
   Settings, Moon, Sun, Globe, User, Bell, Shield, Palette,
   Lock, Key, ExternalLink, Check, X, Eye, EyeOff,
-  TrendingUp, Download, Trash2, Volume2, Zap, Database
+  TrendingUp, Download, Trash2, Volume2, Zap, Database, LogOut
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { theme, toggleTheme, darkVariant, setDarkVariant } = useTheme();
+  const { logout } = useAuth();
 
   // State for modals and forms
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -335,6 +337,21 @@ export default function SettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 group hover:bg-white/10 transition-colors">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <LogOut className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">Esci dal tuo account</p>
+                <p className="text-sm text-muted-foreground">Termina la sessione corrente</p>
+              </div>
+            </div>
+            <Button variant="outline" className="rounded-xl border-primary/20 hover:bg-primary/10" onClick={logout}>
+              Esci
+            </Button>
+          </div>
+
           <div className="flex items-center justify-between p-3 bg-red-500/5 rounded-xl border border-red-500/20">
             <div>
               <p className="font-medium">Elimina Account</p>

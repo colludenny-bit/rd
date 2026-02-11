@@ -5,11 +5,11 @@ import { cn } from '../../lib/utils';
 import { motion } from 'framer-motion';
 
 const navItems = [
-  { path: '/', icon: Home, label: 'Dashboard' },
-  { path: '/charts', icon: LineChart, label: 'Grafici' },
-  { path: '/psychology', icon: Brain, label: 'Psicologia' },
-  { path: '/journal', icon: BookOpen, label: 'Diario' },
-  { path: '/ai', icon: Bot, label: 'AI' },
+  { path: '/app', icon: Home, label: 'Dashboard' },
+  { path: '/app/charts', icon: LineChart, label: 'Grafici' },
+  { path: '/app/psychology', icon: Brain, label: 'Psicologia' },
+  { path: '/app/journal', icon: BookOpen, label: 'Diario' },
+  { path: '/app/ai', icon: Bot, label: 'AI' },
 ];
 
 export const MobileNav = ({ onSearchClick }) => {
@@ -53,7 +53,7 @@ export const MobileNav = ({ onSearchClick }) => {
             </NavLink>
           );
         })}
-        
+
         {/* Search Button */}
         <button
           onClick={onSearchClick}

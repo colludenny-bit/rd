@@ -30,23 +30,23 @@ import {
 } from 'lucide-react';
 
 const navItems = [
-  { path: '/', icon: Home, label: 'Home', iconClass: 'icon-home' },
-  { path: '/crypto', icon: Bitcoin, label: 'Crypto', iconClass: 'icon-crypto' },
-  { path: '/report', icon: BarChart3, label: 'Report', iconClass: 'icon-report' },
-  { path: '/news', icon: Newspaper, label: 'News', iconClass: 'icon-news' },
-  { path: '/macro', icon: Globe, label: 'Macro', iconClass: 'icon-macro' },
-  { path: '/risk', icon: AlertTriangle, label: 'Risk', iconClass: 'icon-risk' },
-  { path: '/cot', icon: TrendingUp, label: 'COT', iconClass: 'icon-cot' },
-  { path: '/options', icon: Activity, label: 'Options', iconClass: 'icon-options' },
-  { path: '/statistics', icon: LineChart, label: 'Stats', iconClass: 'icon-stats' },
-  { path: '/performance', icon: Gauge, label: 'Performance', iconClass: 'icon-performance' },
-  { path: '/strategy', icon: Target, label: 'Strategia', iconClass: 'icon-strategy' },
-  { path: '/montecarlo', icon: Dices, label: 'Monte Carlo', iconClass: 'icon-montecarlo' },
-  { path: '/calculator', icon: Calculator, label: 'Calcolatore', iconClass: 'icon-calculator' },
-  { path: '/journal', icon: BookOpen, label: 'Journal', iconClass: 'icon-journal' },
-  { path: '/psychology', icon: Brain, label: 'Psicologia', iconClass: 'icon-psychology' },
-  { path: '/ai', icon: Sparkles, label: 'Karion AI', iconClass: 'icon-ai' },
-  { path: '/community', icon: Users, label: 'Community', iconClass: 'icon-community' },
+  { path: '/app', icon: Home, label: 'Home', iconClass: 'icon-home' },
+  { path: '/app/crypto', icon: Bitcoin, label: 'Crypto', iconClass: 'icon-crypto' },
+  { path: '/app/report', icon: BarChart3, label: 'Report', iconClass: 'icon-report' },
+  { path: '/app/news', icon: Newspaper, label: 'News', iconClass: 'icon-news' },
+  { path: '/app/macro', icon: Globe, label: 'Macro', iconClass: 'icon-macro' },
+  { path: '/app/risk', icon: AlertTriangle, label: 'Risk', iconClass: 'icon-risk' },
+  { path: '/app/cot', icon: TrendingUp, label: 'COT', iconClass: 'icon-cot' },
+  { path: '/app/options', icon: Activity, label: 'Options', iconClass: 'icon-options' },
+  { path: '/app/statistics', icon: LineChart, label: 'Stats', iconClass: 'icon-stats' },
+  { path: '/app/performance', icon: Gauge, label: 'Performance', iconClass: 'icon-performance' },
+  { path: '/app/strategy', icon: Target, label: 'Strategia', iconClass: 'icon-strategy' },
+  { path: '/app/montecarlo', icon: Dices, label: 'Monte Carlo', iconClass: 'icon-montecarlo' },
+  { path: '/app/calculator', icon: Calculator, label: 'Calcolatore', iconClass: 'icon-calculator' },
+  { path: '/app/journal', icon: BookOpen, label: 'Journal', iconClass: 'icon-journal' },
+  { path: '/app/psychology', icon: Brain, label: 'Psicologia', iconClass: 'icon-psychology' },
+  { path: '/app/ai', icon: Sparkles, label: 'Karion AI', iconClass: 'icon-ai' },
+  { path: '/app/community', icon: Users, label: 'Community', iconClass: 'icon-community' },
 ];
 
 
@@ -171,16 +171,16 @@ export const Sidebar = ({ isOpen, onClose }) => {
         <div className="flex flex-col items-center gap-1 mt-2 w-full px-1">
           {/* Settings Only */}
           <NavLink
-            to="/settings"
+            to="/app/settings"
             className={cn(
               "w-12 h-12 rounded-xl flex items-center justify-center transition-colors hover:bg-secondary",
-              location.pathname === '/settings' && "bg-primary/20"
+              location.pathname === '/app/settings' && "bg-primary/20"
             )}
             data-testid="nav-settings"
           >
             <Settings className={cn(
               "w-7 h-7",
-              location.pathname === '/settings' ? "text-primary" : "text-muted-foreground"
+              location.pathname === '/app/settings' ? "text-primary" : "text-muted-foreground"
             )} />
           </NavLink>
         </div>
@@ -291,12 +291,12 @@ export const Sidebar = ({ isOpen, onClose }) => {
         {/* Footer */}
         <div className="p-4 border-t border-border space-y-2">
           <NavLink
-            to="/settings"
+            to="/app/settings"
             onClick={onClose}
             className={cn(
               "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
               "hover:bg-secondary/80",
-              location.pathname === '/settings' && "bg-primary/10 text-primary"
+              location.pathname === '/app/settings' && "bg-primary/10 text-primary"
             )}
           >
             <Settings className="w-5 h-5" />

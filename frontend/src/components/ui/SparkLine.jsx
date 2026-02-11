@@ -64,7 +64,7 @@ export const SparkLine = ({
                     fill={`url(#sparkGrad-${width}-${height})`}
                     initial={animated ? { opacity: 0 } : {}}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 0.5 }}
+                    transition={{ duration: 0.8 }}
                 />
             )}
 
@@ -79,7 +79,7 @@ export const SparkLine = ({
                     strokeLinejoin="round"
                     initial={animated ? { pathLength: 0, opacity: 0 } : {}}
                     animate={{ pathLength: 1, opacity: 1 }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    transition={{ duration: 1.4, ease: "easeOut" }}
                 />
             )}
 
@@ -95,7 +95,7 @@ export const SparkLine = ({
                     rx={1}
                     initial={animated ? { scaleY: 0 } : {}}
                     animate={{ scaleY: 1 }}
-                    transition={{ duration: 0.4, delay: i * 0.05 }}
+                    transition={{ duration: 0.6, delay: i * 0.08 }}
                     style={{ transformOrigin: 'bottom' }}
                 />
             ))}
@@ -109,7 +109,7 @@ export const SparkLine = ({
                     fill={finalColor}
                     initial={animated ? { scale: 0 } : {}}
                     animate={{ scale: 1 }}
-                    transition={{ duration: 0.3, delay: 0.6 }}
+                    transition={{ duration: 0.5, delay: 1.0 }}
                     style={{ filter: `drop-shadow(0 0 4px ${finalColor})` }}
                 />
             )}
@@ -214,7 +214,7 @@ export const GlowingChart = ({
                 fill={`url(#${gradientId}-fill)`}
                 initial={animated ? { opacity: 0 } : {}}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6 }}
+                transition={{ duration: 1.0 }}
             />
 
             {/* Glowing line */}
@@ -228,7 +228,7 @@ export const GlowingChart = ({
                 filter={`url(#${gradientId}-glow)`}
                 initial={animated ? { pathLength: 0, opacity: 0 } : {}}
                 animate={{ pathLength: 1, opacity: 1 }}
-                transition={{ duration: 1, ease: "easeOut" }}
+                transition={{ duration: 1.8, ease: "easeOut" }}
             />
 
             {/* Data point circles - show every other point */}
@@ -245,7 +245,7 @@ export const GlowingChart = ({
                         strokeOpacity={0.3}
                         initial={animated ? { scale: 0 } : {}}
                         animate={{ scale: 1 }}
-                        transition={{ duration: 0.3, delay: 0.5 + idx * 0.1 }}
+                        transition={{ duration: 0.5, delay: 0.8 + idx * 0.15 }}
                     />
                     {/* Inner dot */}
                     <motion.circle
@@ -257,7 +257,7 @@ export const GlowingChart = ({
                         strokeWidth={1.5}
                         initial={animated ? { scale: 0 } : {}}
                         animate={{ scale: 1 }}
-                        transition={{ duration: 0.3, delay: 0.5 + idx * 0.1 }}
+                        transition={{ duration: 0.5, delay: 0.8 + idx * 0.15 }}
                         style={{ filter: `drop-shadow(0 0 3px ${finalColor})` }}
                     />
                 </motion.g>
@@ -268,7 +268,7 @@ export const GlowingChart = ({
                 <motion.g
                     initial={animated ? { opacity: 0, y: 5 } : {}}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.8 }}
+                    transition={{ duration: 0.6, delay: 1.2 }}
                 >
                     <rect
                         x={highPoint.x - 20}
@@ -395,7 +395,7 @@ export const MiniDonut = ({
                     strokeDasharray={circumference}
                     initial={{ strokeDashoffset: circumference }}
                     animate={{ strokeDashoffset: offset }}
-                    transition={{ duration: 1, ease: "easeOut" }}
+                    transition={{ duration: 1.8, ease: "easeOut" }}
                 />
             </svg>
             {showValue && (

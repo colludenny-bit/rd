@@ -55,13 +55,60 @@ export const MarketService = {
                     tickers: false,
                     market_data: true,
                     community_data: true,
-                    developer_data: false,
+                    developer_data: true,
                     sparkline: true
                 }
             });
             return response.data;
         } catch (error) {
             console.error(`CoinGecko Details Error (${id}):`, error);
+            return null;
+        }
+    },
+
+    // Get top 30 coins by market cap
+    getTop30: async () => {
+        try {
+            const response = await axios.get(`${COINGECKO_API}/coins/markets`, {
+                params: {
+                    vs_currency: 'usd',
+                    order: 'market_cap_desc',
+                    per_page: 30,
+                    page: 1,
+                    sparkline: true,
+                    price_change_percentage: '1h,24h,7d'
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error('CoinGecko Top30 Error:', error);
+            return [];
+        }
+    },
+
+    // Get historical chart data
+    getCoinChart: async (id, days = 7) => {
+        try {
+            const response = await axios.get(`${COINGECKO_API}/coins/${id}/market_chart`, {
+                params: {
+                    vs_currency: 'usd',
+                    days: days
+                }
+            });
+            return response.data;
+        } catch (error) {
+            console.error(`CoinGecko Chart Error (${id}):`, error);
+            return null;
+        }
+    },
+
+    // Get global market data
+    getGlobalData: async () => {
+        try {
+            const response = await axios.get(`${COINGECKO_API}/global`);
+            return response.data.data;
+        } catch (error) {
+            console.error('CoinGecko Global Error:', error);
             return null;
         }
     }

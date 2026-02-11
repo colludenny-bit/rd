@@ -40,7 +40,7 @@ export const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isHomePage = location.pathname === '/';
+  const isHomePage = location.pathname === '/app';
 
   return (
     <div className="min-h-screen bg-background relative transition-colors duration-300">

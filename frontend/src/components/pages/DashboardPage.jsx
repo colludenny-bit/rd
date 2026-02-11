@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -9,11 +9,12 @@ import {
   Target, Shield, AlertTriangle, RefreshCw, Lightbulb, Clock,
   BarChart3, Eye, Minus, Users, ArrowUpRight, ArrowDownRight,
   Scale, Layers, Newspaper, ChevronDown, ChevronUp, ChevronRight,
-  Zap, Calendar, ChevronLeft
+  Zap, Calendar, ChevronLeft, Info, X
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { TechCard, TechCardHeader, TechBadge } from '../ui/TechCard';
 import { SparkLine, GlowingChart, MiniDonut } from '../ui/SparkLine';
+import { DetailChart } from '../ui/DetailChart';
 import { TechTableTabs } from '../ui/TechTable';
 import { ExportButton } from '../ui/ExportButton';
 import { Skeleton, CardSkeleton } from '../ui/LoadingSkeleton';
@@ -21,16 +22,75 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { WeeklyBiasScale } from '../ui/WeeklyBiasScale';
 
 
+// Typewriter Text Component - reveals text character by character
+const TypewriterText = ({ text, speed = 25, delay = 0, className, children }) => {
+  const [displayedChars, setDisplayedChars] = useState(0);
+  const content = text || (typeof children === 'string' ? children : '');
+
+  useEffect(() => {
+    if (!content) return;
+    setDisplayedChars(0);
+    const startTimer = setTimeout(() => {
+      let current = 0;
+      const interval = setInterval(() => {
+        current++;
+        setDisplayedChars(current);
+        if (current >= content.length) clearInterval(interval);
+      }, speed);
+      return () => clearInterval(interval);
+    }, delay);
+    return () => clearTimeout(startTimer);
+  }, [content, speed, delay]);
+
+  if (!content) return <span className={className}>{children}</span>;
+
+  return (
+    <span className={className}>
+      {content.slice(0, displayedChars)}
+      {displayedChars < content.length && (
+        <span className="inline-block w-[2px] h-[0.9em] bg-[#00D9A5]/60 ml-0.5 align-middle animate-pulse" />
+      )}
+    </span>
+  );
+};
+
+// Counter Animation Component - spins numbers like a roulette
+const CountUp = ({ value, duration = 1500, delay = 0, prefix = '', suffix = '', className }) => {
+  const [display, setDisplay] = useState(0);
+  const numVal = typeof value === 'number' ? value : parseFloat(value) || 0;
+  const isDecimal = String(numVal).includes('.') || String(value).includes('.');
+
+  useEffect(() => {
+    setDisplay(0);
+    const startTimer = setTimeout(() => {
+      const startTime = performance.now();
+      const animate = (now) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const current = numVal * eased;
+        setDisplay(isDecimal ? Math.round(current * 10) / 10 : Math.round(current));
+        if (progress < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    }, delay);
+    return () => clearTimeout(startTimer);
+  }, [numVal, duration, delay]);
+
+  return <span className={className}>{prefix}{display}{suffix}</span>;
+};
+
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Asset Charts Grid (2-3 charts visible at once)
-const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
+const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange, animationsReady = false }) => {
   // State with LocalStorage Persistence
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('dashboard_viewMode') || 'grid');
   const [selectedAsset, setSelectedAsset] = useState(() => localStorage.getItem('dashboard_selectedAsset') || null);
   const [showSelector, setShowSelector] = useState(false);
   const [showAssetMenu, setShowAssetMenu] = useState(false);
   const [showColorPalette, setShowColorPalette] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [chartLineColor, setChartLineColor] = useState(() => localStorage.getItem('dashboard_chartLineColor') || '#00D9A5');
 
   // Persist State Changes
@@ -137,9 +197,91 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
   };
 
   return (
-    <TechCard className="font-apple glass-edge fine-gray-border p-5">
+    <TechCard className="font-apple glass-edge fine-gray-border p-5 relative">
+      {/* Info Tooltip - Genie Effect */}
+      <AnimatePresence>
+        {showInfo && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0, y: -20 }}
+            transition={{
+              type: "spring",
+              stiffness: 350,
+              damping: 25,
+              mass: 0.6
+            }}
+            style={{ transformOrigin: 'top left', willChange: 'transform, opacity, filter' }}
+            className="absolute inset-3 z-50 bg-[#0F1115]/20 backdrop-blur-[6px] rounded-[24px]"
+          >
+            <div className="relative px-8 py-6 border border-[#00D9A5]/30 rounded-[24px] shadow-2xl w-full h-full overflow-y-auto scrollbar-thin font-apple">
+              <div className="flex items-center justify-between mb-5">
+                <h4 className="text-xl font-bold text-white uppercase tracking-[0.15em]">Guida Screening</h4>
+                <button onClick={() => setShowInfo(false)} className="p-2 hover:bg-white/10 rounded-lg transition-all">
+                  <X className="w-5 h-5 text-white/50" />
+                </button>
+              </div>
+              <div className="space-y-5 text-left">
+                <p className="text-lg text-white leading-relaxed font-normal">
+                  Lo <span className="text-[#00D9A5] font-semibold">Screening</span> analizza gli asset in tempo reale combinando indicatori tecnici, volumi e momentum per identificare opportunità di trading ad alta probabilità.
+                </p>
+
+                <div className="pt-5 border-t border-white/10">
+                  <div className="flex items-center justify-center gap-2 mb-5">
+                    <BarChart3 className="w-5 h-5 text-[#00D9A5]" style={{ filter: 'drop-shadow(0 0 6px #00D9A5)' }} />
+                    <p className="text-base font-bold text-white uppercase tracking-[0.15em]">Come leggere i dati</p>
+                  </div>
+                  <ul className="space-y-4 text-left">
+                    <li className="flex items-start gap-3">
+                      <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_8px_#00D9A5] flex-shrink-0" />
+                      <p className="text-lg text-white leading-relaxed font-normal">
+                        <span className="font-semibold">Direzione:</span> Trend dominante dell'asset.
+                        <span className="text-[#00D9A5] font-semibold"> Up = rialzista</span>,
+                        <span className="text-red-400 font-semibold"> Down = ribassista</span>.
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_8px_#00D9A5] flex-shrink-0" />
+                      <p className="text-lg text-white leading-relaxed font-normal">
+                        <span className="font-semibold">Confidenza:</span> Forza del segnale (0-100%).
+                        <span className="text-[#00D9A5] font-semibold"> &gt;60% = segnale forte</span>,
+                        <span className="text-yellow-400 font-semibold"> 40-60% = moderato</span>.
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_10px_#00D9A5] flex-shrink-0" />
+                      <p className="text-lg text-white leading-relaxed font-normal">
+                        <span className="font-semibold text-[#00D9A5]">Volumi:</span> Conferma della direzione tramite volume.
+                        Volumi crescenti <span className="italic">validano</span> il movimento.
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-2.5 w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_10px_#FACC15] flex-shrink-0" />
+                      <p className="text-lg text-white leading-relaxed font-normal">
+                        <span className="font-semibold text-yellow-400">Outlook:</span> Sintesi operativa giornaliera.
+                        Contiene <span className="italic">bias, target e livelli chiave</span>.
+                      </p>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="pt-5 border-t border-white/10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lightbulb className="w-5 h-5 text-[#00D9A5]" style={{ filter: 'drop-shadow(0 0 6px #00D9A5)' }} />
+                    <p className="text-base font-bold text-white uppercase tracking-[0.15em]">Consiglio</p>
+                  </div>
+                  <p className="text-lg text-white/90 leading-relaxed font-normal">
+                    Usa lo Screening come filtro iniziale: seleziona asset con confidenza &gt;60% e verifica con COT e Options prima di entrare.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex items-center justify-between mb-8">
-        <div className="relative">
+        <div className="relative flex items-center gap-2">
           <button
             onClick={handleTitleClick}
             className="flex items-center gap-3 group transition-all"
@@ -163,6 +305,13 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
                 {viewMode === 'focus' ? 'Dettagli asset' : 'Clicca per selezionare asset'}
               </p>
             </div>
+          </button>
+          {/* Info Button */}
+          <button
+            onClick={() => setShowInfo(!showInfo)}
+            className="p-1.5 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-all opacity-40 hover:opacity-100"
+          >
+            <Info className="w-3.5 h-3.5 text-white" />
           </button>
 
           {/* Asset Selection Dropdown */}
@@ -197,71 +346,88 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
           </AnimatePresence>
         </div>
 
-        {/* Favorite Eye Icon & Color Selector */}
-        <div className="relative" onMouseLeave={() => setShowSelector(false)}>
-          <button
-            onClick={() => setShowSelector(!showSelector)}
-            className={cn(
-              "p-2 rounded-lg border transition-all flex items-center gap-2",
-              showSelector ? "bg-[#00D9A5]/10 border-[#00D9A5]/30 text-[#00D9A5]" : "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:bg-white/5 dark:border-white/10 dark:text-white/40 dark:hover:text-white dark:hover:border-white/20"
-            )}
-          >
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: chartLineColor }} />
-            <Eye className="w-5 h-5" />
-          </button>
+        <div className="flex items-center gap-3">
+          {/* Outlook Giornaliero */}
+          {viewMode === 'focus' && currentAsset && (
+            <div className="text-right">
+              <p className="text-sm text-white uppercase font-black tracking-[0.15em] mb-1">Outlook Giornaliero</p>
+              <div className={cn(
+                "px-3 py-1.5 rounded-lg border text-xs font-bold shadow-lg uppercase tracking-widest",
+                getDailyOutlook(currentAsset).conclusionType === 'bullish' ? "bg-[#00D9A5]/10 text-[#00D9A5] border-[#00D9A5]/20" :
+                  getDailyOutlook(currentAsset).conclusionType === 'bearish' ? "bg-red-500/10 text-red-400 border-red-400/20" :
+                    "bg-yellow-500/10 text-yellow-400 border-yellow-400/20"
+              )}>
+                {getDailyOutlook(currentAsset).conclusion}
+              </div>
+            </div>
+          )}
 
-          <AnimatePresence>
-            {showSelector && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute right-0 top-full z-50 p-3 bg-white/95 border border-slate-200/50 rounded-xl shadow-2xl min-w-[220px] backdrop-blur-xl dark:bg-[#0B0F17]/95 dark:border-white/10"
-              >
-                {/* Asset Selection Section */}
-                <div className="mb-2 px-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-white/30">Seleziona Asset ({favoriteCharts.length}/3)</span>
-                </div>
-                <div className="space-y-1 mb-4">
-                  {assets.map((a) => (
-                    <button
-                      key={a.symbol}
-                      onClick={() => toggleFavorite(a.symbol)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all font-medium",
-                        favoriteCharts.includes(a.symbol)
-                          ? "bg-[#00D9A5]/10 text-[#00D9A5]"
-                          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
-                      )}
-                    >
-                      <span>{a.symbol}</span>
-                    </button>
-                  ))}
-                </div>
+          {/* Favorite Eye Icon & Color Selector */}
+          <div className="relative" onMouseLeave={() => setShowSelector(false)}>
+            <button
+              onClick={() => setShowSelector(!showSelector)}
+              className={cn(
+                "p-2 rounded-lg border transition-all flex items-center gap-2",
+                showSelector ? "bg-[#00D9A5]/10 border-[#00D9A5]/30 text-[#00D9A5]" : "bg-slate-100 border-slate-200 text-slate-500 hover:bg-slate-200 hover:text-slate-700 dark:bg-white/5 dark:border-white/10 dark:text-white/40 dark:hover:text-white dark:hover:border-white/20"
+              )}
+            >
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: chartLineColor }} />
+              <Eye className="w-5 h-5" />
+            </button>
 
-                {/* Color Selection Section */}
-                <div className="border-t border-white/5 pt-3">
+            <AnimatePresence>
+              {showSelector && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  className="absolute right-0 top-full z-50 p-3 bg-white/95 border border-slate-200/50 rounded-xl shadow-2xl min-w-[220px] backdrop-blur-xl dark:bg-[#0B0F17]/95 dark:border-white/10"
+                >
+                  {/* Asset Selection Section */}
                   <div className="mb-2 px-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-white/30">Colore Grafico</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-white/30">Seleziona Asset ({favoriteCharts.length}/3)</span>
                   </div>
-                  <div className="flex items-center justify-between px-2">
-                    {chartColors.map((color) => (
+                  <div className="space-y-1 mb-4">
+                    {assets.map((a) => (
                       <button
-                        key={color}
-                        onClick={() => setChartLineColor(color)}
+                        key={a.symbol}
+                        onClick={() => toggleFavorite(a.symbol)}
                         className={cn(
-                          "w-5 h-5 rounded-full border-2 transition-all hover:scale-110",
-                          chartLineColor === color ? "border-white shadow-[0_0_8px_rgba(255,255,255,0.5)] scale-110" : "border-transparent opacity-50 hover:opacity-100"
+                          "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all font-medium",
+                          favoriteCharts.includes(a.symbol)
+                            ? "bg-[#00D9A5]/10 text-[#00D9A5]"
+                            : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
                         )}
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
+                      >
+                        <span>{a.symbol}</span>
+                      </button>
                     ))}
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
+                  {/* Color Selection Section */}
+                  <div className="border-t border-white/5 pt-3">
+                    <div className="mb-2 px-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest dark:text-white/30">Colore Grafico</span>
+                    </div>
+                    <div className="flex items-center justify-between px-2">
+                      {chartColors.map((color) => (
+                        <button
+                          key={color}
+                          onClick={() => setChartLineColor(color)}
+                          className={cn(
+                            "w-5 h-5 rounded-full border-2 transition-all hover:scale-110",
+                            chartLineColor === color ? "border-white shadow-[0_0_8px_rgba(255,255,255,0.5)] scale-110" : "border-transparent opacity-50 hover:opacity-100"
+                          )}
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -307,13 +473,15 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
                   </div>
 
                   <div className="h-28 -ml-4 relative z-10 overflow-hidden rounded-lg mb-2">
-                    <GlowingChart
-                      data={asset.sparkData || [30, 45, 35, 60, 42, 70, 55, 65, 50, 75]}
-                      width={400}
-                      height={110}
-                      color={color}
-                      showPrice={false}
-                    />
+                    {animationsReady && (
+                      <GlowingChart
+                        data={asset.sparkData || [30, 45, 35, 60, 42, 70, 55, 65, 50, 75]}
+                        width={400}
+                        height={110}
+                        color={color}
+                        showPrice={false}
+                      />
+                    )}
                   </div>
 
                   <div className="relative z-10 space-y-3 mt-4">
@@ -342,7 +510,7 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
                       {getDailyOutlook(asset).outlookLines.slice(0, 3).map((line, i) => (
                         <li key={i} className="flex items-start gap-3 text-base font-semibold text-white/95 leading-relaxed tracking-tight">
                           <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-[#00D9A5]/60 shadow-[0_0_8px_#00D9A5]/40 flex-shrink-0" />
-                          <span>{line}</span>
+                          <TypewriterText text={line} speed={20} delay={500 + i * 800} />
                         </li>
                       ))}
                     </ul>
@@ -357,7 +525,7 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, x: -10 }}
-            className="animate-in fade-in slide-in-from-bottom-2 duration-500"
+            className="animate-in fade-in slide-in-from-bottom-2 duration-[800ms]"
           >
             {/* Focus View Header - Compact */}
             <div className="flex flex-wrap items-center justify-between mb-5 gap-4">
@@ -371,45 +539,30 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
-                  <TechBadge variant={currentAsset.direction === 'Up' ? 'success' : 'warning'} className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.2em] leading-none">
-                    {currentAsset.direction === 'Up' ? 'Bullish' : 'Bearish'} {currentAsset.confidence}%
+                  <TechBadge variant={currentAsset.direction === 'Up' ? 'success' : 'warning'} className="px-3 py-1.5 font-bold uppercase tracking-[0.2em] leading-none flex flex-col items-center gap-0.5">
+                    <span className="text-xs">Confidenza</span>
+                    <span className="text-sm font-black">{currentAsset.confidence}%</span>
                   </TechBadge>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-8">
-                <div className="text-right">
-                  <p className="text-xs text-white uppercase font-black tracking-[0.2em] mb-1 leading-none text-right">Confidenza</p>
-                  <p className="text-4xl font-black leading-none tracking-tight text-[#00D9A5]">
-                    {currentAsset.confidence}%
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-white uppercase font-black tracking-[0.2em] mb-1">Outlook Giornaliero</p>
-                  <div className={cn(
-                    "px-3 py-1 rounded-lg border text-[11px] font-bold shadow-lg uppercase tracking-widest",
-                    dailyOutlook.conclusionType === 'bullish' ? "bg-[#00D9A5]/10 text-[#00D9A5] border-[#00D9A5]/20" :
-                      dailyOutlook.conclusionType === 'bearish' ? "bg-red-500/10 text-red-400 border-red-400/20" :
-                        "bg-yellow-500/10 text-yellow-400 border-yellow-400/20"
-                  )}>
-                    {dailyOutlook.conclusion}
-                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Big Chart - Flattened */}
-            <div className="h-[220px] mb-6 relative group overflow-hidden">
+            {/* Big Chart - Compatto */}
+            <div className="h-[100px] mb-6 relative group overflow-hidden">
               {/* Hover Gradient - Neutral */}
               <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-100 to-transparent pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity dark:from-white/5" />
               <div className="w-full h-full flex items-center justify-center">
-                <GlowingChart
-                  data={currentAsset.sparkData || [30, 45, 35, 60, 42, 70, 55, 65, 50, 75]}
-                  width={1000}
-                  height={200}
-                  color={chartLineColor}
-                  showPrice={true}
-                />
+                {animationsReady && (
+                  <DetailChart
+                    data={(currentAsset.sparkData || [30, 45, 35, 60, 42, 70, 55, 65, 50, 75]).map((val, i) => ({
+                      date: `${10 + (i * 2)}:00`,
+                      value: val
+                    }))}
+                    height={100}
+                    color={chartLineColor}
+                    showgrid={false}
+                  />
+                )}
               </div>
             </div>
 
@@ -421,7 +574,7 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
                   {dailyOutlook.outlookLines.map((line, i) => (
                     <li key={i} className="flex items-start gap-4 text-base font-semibold text-white/95 leading-relaxed tracking-tight">
                       <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-[#00D9A5] shadow-[0_0_10px_#00D9A5] flex-shrink-0" />
-                      <span>{line}</span>
+                      <TypewriterText text={line} speed={20} delay={600 + i * 1000} />
                     </li>
                   ))}
                 </ul>
@@ -450,7 +603,7 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
           </motion.div>
         )}
       </AnimatePresence>
-    </TechCard>
+    </TechCard >
   );
 };
 
@@ -490,8 +643,9 @@ const RiskPanel = ({ vix, regime }) => (
 );
 
 // COT Summary Panel - Premium Carousel Style
-const COTPanel = ({ cotData, favoriteCOT, onFavoriteCOTChange }) => {
+const COTPanel = ({ cotData, favoriteCOT, onFavoriteCOTChange, animationsReady = false }) => {
   const [showSelector, setShowSelector] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
   if (!cotData?.data) return null;
@@ -553,42 +707,143 @@ const COTPanel = ({ cotData, favoriteCOT, onFavoriteCOTChange }) => {
 
   const metrics = getMetrics(data, pos);
 
-  // Generate interpretive text - 3 bullet points summary
+  // Generate interpretive text - 4 bullet points technical summary
   const getInterpretation = (data, metrics) => {
-    if (!data) return ['Caricamento dati...', 'Attendere prego.', '...'];
+    if (!data) return ['Caricamento dati...', 'Attendere prego.', '...', '...'];
     if (data.bias === 'Bull') {
       return [
-        `Accumulo istituzionale forte (${metrics.confidence}%).`,
-        metrics.crowding > 75 ? 'Rischio crowding elevato, possibile consolidamento.' : 'Trend rialzista supportato dai fondamentali.',
-        'Target tecnico istituzionale individuato su livelli superiori.'
+        `Accumulo istituzionale forte con confidence al ${metrics.confidence}%.`,
+        metrics.crowding > 75 ? 'Crowding elevato: possibile consolidamento prima di nuova estensione.' : 'Trend rialzista supportato da fondamentali e flussi netti positivi.',
+        `Rapporto Long/Short favorevole — net position in espansione da 3 settimane.`,
+        'Target tecnico istituzionale su livelli superiori; supporto dinamico confermato.'
       ];
     } else if (data.bias === 'Bear') {
       return [
-        `Distribuzione istituzionale in corso (${metrics.confidence}%).`,
-        metrics.squeezeRisk > 75 ? 'Rischio short squeeze elevato su questi livelli.' : 'Pressione ribassista confermata dai flussi.',
-        'Sentiment market neutral in attesa di breakout direzionale.'
+        `Distribuzione istituzionale attiva — confidence al ${metrics.confidence}%.`,
+        metrics.squeezeRisk > 75 ? 'Short squeeze risk critico: monitorare chiusure sopra resistenza chiave.' : 'Pressione ribassista confermata da flussi netti e open interest.',
+        `Crowding al ${metrics.crowding}% — eccesso di consenso short da gestire con cautela.`,
+        'Scenario risk-off dominante; attesa breakout direzionale su dati macro.'
       ];
     }
     return [
-      'Posizionamento neutrale degli istituzionali.',
-      'In attesa della prossima release del report COT.',
-      'Monitoraggio flussi opzioni in corso.'
+      'Posizionamento neutrale degli istituzionali — nessuna direzionalità chiara.',
+      'Flussi bilanciati tra long e short con volatilità in contrazione.',
+      'Attendere prossima release COT per conferma bias settimanale.',
+      'Monitoraggio incrociato con options flow per segnali anticipatori.'
     ];
   };
 
   const interpretation = getInterpretation(data, metrics);
 
   return (
-    <TechCard className="p-5 font-apple bg-[#0F1115] border-[#1C1F26] rounded-[32px] shadow-2xl relative overflow-hidden flex flex-col">
+    <TechCard className="p-3 h-full font-apple bg-[#0F1115] border-[#1C1F26] rounded-[32px] shadow-2xl relative flex flex-col">
       {/* Glow effect in background */}
       <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-[#00D9A5]/5 blur-[80px] rounded-full pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Users className="w-5 h-5 text-[#00D9A5]" />
           <span className="font-medium text-base text-white/90">COT Institutional</span>
+          {/* Info Button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowInfo(!showInfo)}
+              className="p-1.5 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-all opacity-40 hover:opacity-100"
+            >
+              <Info className="w-3.5 h-3.5 text-white" />
+            </button>
+          </div>
         </div>
+
+        {/* Info Tooltip - Centered overlay in panel */}
+        <AnimatePresence>
+          {showInfo && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0, y: -20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0, y: -20 }}
+              transition={{
+                type: "spring",
+                stiffness: 350,
+                damping: 25,
+                mass: 0.6
+              }}
+              style={{ transformOrigin: 'top left', willChange: 'transform, opacity, filter' }}
+              className="absolute inset-3 z-50 bg-[#0F1115]/20 backdrop-blur-[6px] rounded-[24px]"
+            >
+              {/* Glass effect content layer */}
+              <div className="relative px-8 py-6 border border-[#00D9A5]/30 rounded-[24px] shadow-2xl w-full h-full overflow-y-auto scrollbar-thin font-apple">
+                <div className="flex items-center justify-between mb-5">
+                  <h4 className="text-xl font-bold text-white uppercase tracking-[0.15em]">Guida COT</h4>
+                  <button onClick={() => setShowInfo(false)} className="p-2 hover:bg-white/10 rounded-lg transition-all">
+                    <X className="w-5 h-5 text-white/50" />
+                  </button>
+                </div>
+                <div className="space-y-5 text-left">
+                  <p className="text-lg text-white leading-relaxed font-normal">
+                    Il <span className="text-[#00D9A5] font-semibold">COT (Commitment of Traders)</span> è un report settimanale della CFTC che rivela il posizionamento degli operatori istituzionali (hedge fund, asset manager) sui mercati futures. È lo strumento chiave per capire dove si muove il <span className="text-white/90 italic">"smart money"</span>.
+                  </p>
+
+                  <div className="pt-5 border-t border-white/10">
+                    <div className="flex items-center justify-center gap-2 mb-5">
+                      <BarChart3 className="w-5 h-5 text-[#00D9A5]" style={{ filter: 'drop-shadow(0 0 6px #00D9A5)' }} />
+                      <p className="text-base font-bold text-white uppercase tracking-[0.15em]">Come leggere i dati</p>
+                    </div>
+                    <ul className="space-y-4 text-left">
+                      <li className="flex items-start gap-3">
+                        <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_8px_#00D9A5] flex-shrink-0" />
+                        <p className="text-lg text-white leading-relaxed font-normal">
+                          <span className="font-semibold">Net Position:</span> Differenza tra Long e Short.
+                          <span className="text-[#00D9A5] font-semibold"> Positivo = bullish</span>,
+                          <span className="text-red-400 font-semibold"> Negativo = bearish</span>.
+                        </p>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_8px_#00D9A5] flex-shrink-0" />
+                        <p className="text-lg text-white leading-relaxed font-normal">
+                          <span className="font-semibold">Scale W-3 → W-0:</span> Evoluzione bias ultime 4 settimane.
+                          Valori crescenti = <span className="italic">accumulazione</span>, calanti = <span className="italic">distribuzione</span>.
+                        </p>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_10px_#00D9A5] flex-shrink-0" />
+                        <p className="text-lg text-white leading-relaxed font-normal">
+                          <span className="font-semibold text-[#00D9A5]">Confidence:</span> Forza della convinzione.
+                          Valori &gt;70% indicano forte consenso direzionale.
+                        </p>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="mt-2.5 w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_10px_#FACC15] flex-shrink-0" />
+                        <p className="text-lg text-white leading-relaxed font-normal">
+                          <span className="font-semibold text-yellow-400">Crowding:</span> Affollamento posizioni.
+                          Valori &gt;80% = eccesso consenso → possibile inversione.
+                        </p>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="mt-2.5 w-2 h-2 rounded-full bg-red-400 shadow-[0_0_10px_#F87171] flex-shrink-0" />
+                        <p className="text-lg text-white leading-relaxed font-normal">
+                          <span className="font-semibold text-red-400">Squeeze:</span> Rischio short squeeze.
+                          Valori alti = molti short esposti. Rally esplosivo se sale. <span className="text-red-400 font-semibold">Cautela se short.</span>
+                        </p>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="pt-5 border-t border-white/10">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Lightbulb className="w-5 h-5 text-[#00D9A5]" style={{ filter: 'drop-shadow(0 0 6px #00D9A5)' }} />
+                      <p className="text-base font-bold text-white uppercase tracking-[0.15em]">Consiglio</p>
+                    </div>
+                    <p className="text-lg text-white/90 leading-relaxed font-normal">
+                      Usa il COT come filtro direzionale: opera nella direzione del posizionamento istituzionale, evita di andare contro il "smart money".
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="flex items-center gap-4">
           <div className="relative" onMouseLeave={() => setShowSelector(false)}>
             <button
@@ -630,18 +885,25 @@ const COTPanel = ({ cotData, favoriteCOT, onFavoriteCOTChange }) => {
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col -mt-[18px]">
         {/* Main Title & Value */}
-        <div className="mb-4">
-          <h2 className="text-xl font-bold text-white mb-2">{currentSymbol}</h2>
-          <div className="flex items-baseline gap-3">
-            <span className="text-4xl font-bold text-white tracking-tighter leading-none">{formattedNetPos}</span>
-            <span className="text-[12px] text-white/60 font-bold uppercase tracking-[0.2em]">Net Position</span>
+        {/* Compact Title Row & Chart */}
+        {/* Left Aligned Compact Row */}
+        {/* Left Stack Title & NetPos */}
+        {/* Left Stack Title & NetPos - Big & Spaced */}
+        <div className="flex flex-col items-start px-1 mb-0 relative top-[18px] shrink-0">
+          <h2 className="text-xl font-bold text-white leading-none mb-0.5">{currentSymbol}</h2>
+          <div className="flex items-baseline gap-2 mt-0">
+            <span className={cn(
+              "text-3xl font-bold tracking-tighter leading-none",
+              netPos >= 0 ? "text-[#00D9A5]" : "text-red-400"
+            )}>{formattedNetPos}</span>
+            <span className="text-xs text-white/70 font-bold uppercase tracking-wider relative -top-[1px]">Net Position</span>
           </div>
         </div>
 
-        {/* Rolling Bias Section - ENLARGED & CLEAN */}
-        <div className="mb-4 mt-2 px-2">
+        {/* Rolling Bias Section */}
+        <div className="mb-0 -mt-[8px] px-0">
           <WeeklyBiasScale
             data={data.rolling_bias || [
               { label: 'W-3', value: 45, isCurrent: false },
@@ -649,47 +911,48 @@ const COTPanel = ({ cotData, favoriteCOT, onFavoriteCOTChange }) => {
               { label: 'W-1', value: 55, isCurrent: false, isPrevious: true },
               { label: 'W-0', value: metrics.confidence, isCurrent: true }
             ]}
-            mini={false}
+            mini={true}
             showWrapper={false}
+            trigger={animationsReady}
           />
         </div>
 
-        {/* Metrics Row - Confidence | Crowding | Squeeze - MOVED HERE */}
-        <div className="grid grid-cols-3 gap-3 mb-6 mt-0 p-4 bg-white/5 rounded-[24px] border border-white/5">
-          <div className="flex flex-col items-center justify-center">
-            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">Confidence</span>
-            <span className="text-xl font-bold text-[#00D9A5]">{metrics.confidence}%</span>
+        {/* Metrics Row */}
+        <div className="flex items-start justify-evenly px-0 mb-1">
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-bold text-white/70 uppercase tracking-widest mb-0.5">Confidence</span>
+            <span className="text-xl font-bold text-[#00D9A5]"><CountUp value={metrics.confidence} suffix="%" duration={1800} delay={200} /></span>
           </div>
-          <div className="flex flex-col items-center justify-center border-x border-white/10">
-            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">Crowding</span>
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-bold text-white/70 uppercase tracking-widest mb-0.5">Crowding</span>
             <span className={cn(
               "text-xl font-bold",
               metrics.crowding > 75 ? "text-yellow-400" : "text-white"
-            )}>{metrics.crowding}%</span>
+            )}><CountUp value={metrics.crowding} suffix="%" duration={1800} delay={400} /></span>
           </div>
-          <div className="flex flex-col items-center justify-center">
-            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest mb-1">Squeeze</span>
+          <div className="flex flex-col items-center">
+            <span className="text-xs font-bold text-white/70 uppercase tracking-widest mb-0.5">Squeeze</span>
             <span className={cn(
               "text-xl font-bold",
               metrics.squeezeRisk > 70 ? "text-red-400" : "text-[#00D9A5]"
-            )}>{metrics.squeezeRisk}%</span>
+            )}><CountUp value={metrics.squeezeRisk} suffix="%" duration={1800} delay={600} /></span>
           </div>
         </div>
 
 
-        {/* Bias Interpretation - MOVED & mt-auto removed */}
-        <div className="p-5 mt-4 rounded-[24px] bg-white/5 border border-white/10">
-          <ul className="space-y-1.5">
-            {interpretation.slice(0, 2).map((line, i) => (
-              <li key={i} className="flex items-start gap-3">
-                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#00D9A5] shadow-[0_0_8px_#00D9A5] flex-shrink-0" />
-                <span className="text-sm text-white/90 leading-snug">{line}</span>
+        {/* Bias Interpretation */}
+        <div className="relative top-[4px] p-4 rounded-xl bg-white/5 border border-white/10">
+          <ul className="space-y-1.5 text-base text-white/90">
+            {interpretation.slice(0, 4).map((line, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="text-[#00D9A5] mt-0.5">•</span>
+                <TypewriterText text={line} speed={20} delay={300 + i * 800} />
               </li>
             ))}
           </ul>
         </div>
       </div>
-    </TechCard>
+    </TechCard >
   );
 };
 
@@ -697,8 +960,9 @@ const COTPanel = ({ cotData, favoriteCOT, onFavoriteCOTChange }) => {
 
 
 // Options Flow Panel - Enhanced Interactive
-const OptionsPanel = ({ optionsData }) => {
+const OptionsPanel = ({ optionsData, animationsReady = false }) => {
   const [showSelector, setShowSelector] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState('XAUUSD');
 
   const availableAssets = ['XAUUSD', 'NAS100', 'SP500', 'EURUSD', 'BTCUSD'];
@@ -706,58 +970,58 @@ const OptionsPanel = ({ optionsData }) => {
   // Asset-specific options data with millions values (simulated - will come from backend)
   const assetOptionsData = {
     XAUUSD: {
-      call_ratio: 62, put_ratio: 38, net_flow: 68, bias: 'bullish',
-      call_million: 142, put_million: 87, net_million: 55,
-      call_change: 8.2, put_change: -3.5, net_change: 12.1,
-      gamma_exposure: 72, gamma_billion: 1.2, // gamma in billions
+      call_ratio: 55, put_ratio: 45, net_flow: 52, bias: 'bullish',
+      call_million: 128, put_million: 105, net_million: 23,
+      call_change: -5.2, put_change: 8.4, net_change: -12.5,
+      gamma_exposure: 55, gamma_billion: 0.9,
       interpretation: [
-        'Flusso istituzionale XAUUSD orientato long.',
-        'Call premium in aumento su livelli chiave 2050-2100.',
-        'Sentiment risk-off supporta posizioni rialziste.'
+        'Flusso Gold moderatamente bullish ma in rallentamento.',
+        'Long liquidation significativa: -14.9% gross longs speculativi.',
+        'Supporto a $5000, resistenza chiave a $5100.'
       ]
     },
     NAS100: {
-      call_ratio: 58, put_ratio: 42, net_flow: 55, bias: 'bullish',
-      call_million: 98, put_million: 71, net_million: 27,
-      call_change: 4.1, put_change: 2.3, net_change: 5.8,
-      gamma_exposure: 58, gamma_billion: 0.8,
+      call_ratio: 50, put_ratio: 50, net_flow: 48, bias: 'neutral',
+      call_million: 88, put_million: 90, net_million: -2,
+      call_change: -2.8, put_change: 4.5, net_change: -6.2,
+      gamma_exposure: 48, gamma_billion: 0.6,
       interpretation: [
-        'Flusso NAS100 moderatamente bullish.',
-        'Tech stocks accumulo call su livelli di supporto.',
-        'Volatilità in calo favorisce posizioni direzionali.'
+        'Flusso NAS100 neutrale, equilibrio call/put.',
+        'Tech in pressione post-NFP forte (ritardo tagli).',
+        'COT speculatori net short, cautela su posizioni long.'
       ]
     },
     SP500: {
-      call_ratio: 52, put_ratio: 48, net_flow: 50, bias: 'neutral',
-      call_million: 185, put_million: 171, net_million: 14,
-      call_change: 1.2, put_change: 0.8, net_change: 0.5,
-      gamma_exposure: 52, gamma_billion: 2.5,
+      call_ratio: 48, put_ratio: 52, net_flow: 45, bias: 'neutral',
+      call_million: 165, put_million: 178, net_million: -13,
+      call_change: -3.5, put_change: 5.2, net_change: -8.1,
+      gamma_exposure: 48, gamma_billion: 4.8,
       interpretation: [
-        'SP500 in equilibrio call/put.',
-        'Istituzionali attendono dati macro.',
-        'Posizionamento neutrale in attesa di breakout.'
+        'SP500 in equilibrio post-NFP beat (+130K vs 65K attesi).',
+        'Speculatori COT net short -132.9K contratti.',
+        'Range 6850-7000, gamma flip a 6900.'
       ]
     },
     EURUSD: {
-      call_ratio: 45, put_ratio: 55, net_flow: 40, bias: 'bearish',
-      call_million: 54, put_million: 66, net_million: -12,
-      call_change: -2.1, put_change: 5.4, net_change: -7.2,
-      gamma_exposure: 35, gamma_billion: -0.3,
+      call_ratio: 62, put_ratio: 38, net_flow: 68, bias: 'bullish',
+      call_million: 78, put_million: 48, net_million: 30,
+      call_change: 8.5, put_change: -4.2, net_change: 14.2,
+      gamma_exposure: 65, gamma_billion: 0.5,
       interpretation: [
-        'Flusso EURUSD orientato short su dollaro forte.',
-        'Put premium dominante sotto 1.0800.',
-        'Divergenza tassi Fed/BCE pesa sul cross.'
+        'Flusso EURUSD decisamente bullish.',
+        'EUR net long speculativo a 163K (max 6 mesi).',
+        'DXY in calo a 96.60, supporta EUR sopra 1.18.'
       ]
     },
     BTCUSD: {
-      call_ratio: 72, put_ratio: 28, net_flow: 78, bias: 'bullish',
-      call_million: 312, put_million: 121, net_million: 191,
-      call_change: 15.3, put_change: -8.2, net_change: 22.1,
-      gamma_exposure: 85, gamma_billion: 3.8,
+      call_ratio: 38, put_ratio: 62, net_flow: 32, bias: 'bearish',
+      call_million: 142, put_million: 232, net_million: -90,
+      call_change: -18.5, put_change: 22.8, net_change: -35.4,
+      gamma_exposure: 30, gamma_billion: -2.1,
       interpretation: [
-        'BTCUSD flusso estremamente bullish.',
-        'Call accumulo massiccio su strike 50K-60K.',
-        'Istituzionali accumulano in vista halving.'
+        'BTCUSD flusso fortemente bearish.',
+        'Sell-off da $100K a $67K, put premium dominante.',
+        'Liquidazioni long cascata, supporto critico $65K.'
       ]
     }
   };
@@ -765,12 +1029,100 @@ const OptionsPanel = ({ optionsData }) => {
   const currentData = assetOptionsData[selectedAsset] || assetOptionsData.XAUUSD;
 
   return (
-    <TechCard className="p-4 font-apple">
+    <TechCard className="p-3 h-full font-apple relative">
+      {/* Info Tooltip - Genie Effect */}
+      <AnimatePresence>
+        {showInfo && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0, y: -20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0, y: -20 }}
+            transition={{
+              type: "spring",
+              stiffness: 350,
+              damping: 25,
+              mass: 0.6
+            }}
+            style={{ transformOrigin: 'top left', willChange: 'transform, opacity, filter' }}
+            className="absolute inset-3 z-50 bg-[#0F1115]/20 backdrop-blur-[6px] rounded-[24px]"
+          >
+            <div className="relative px-8 py-6 border border-[#00D9A5]/30 rounded-[24px] shadow-2xl w-full h-full overflow-y-auto scrollbar-thin font-apple">
+              <div className="flex items-center justify-between mb-5">
+                <h4 className="text-xl font-bold text-white uppercase tracking-[0.15em]">Guida Options</h4>
+                <button onClick={() => setShowInfo(false)} className="p-2 hover:bg-white/10 rounded-lg transition-all">
+                  <X className="w-5 h-5 text-white/50" />
+                </button>
+              </div>
+              <div className="space-y-5 text-left">
+                <p className="text-lg text-white leading-relaxed font-normal">
+                  L'<span className="text-[#00D9A5] font-semibold">Options Flow</span> traccia i flussi di opzioni call e put sui mercati principali. Rivela dove gli istituzionali stanno posizionando le loro scommesse direzionali attraverso il mercato delle opzioni.
+                </p>
+
+                <div className="pt-5 border-t border-white/10">
+                  <div className="flex items-center justify-center gap-2 mb-5">
+                    <BarChart3 className="w-5 h-5 text-[#00D9A5]" style={{ filter: 'drop-shadow(0 0 6px #00D9A5)' }} />
+                    <p className="text-base font-bold text-white uppercase tracking-[0.15em]">Come leggere i dati</p>
+                  </div>
+                  <ul className="space-y-4 text-left">
+                    <li className="flex items-start gap-3">
+                      <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_8px_#00D9A5] flex-shrink-0" />
+                      <p className="text-lg text-white leading-relaxed font-normal">
+                        <span className="font-semibold">Call/Put Ratio:</span> Proporzione tra opzioni call (rialziste) e put (ribassiste).
+                        <span className="text-[#00D9A5] font-semibold"> Call &gt; 55% = bullish</span>,
+                        <span className="text-red-400 font-semibold"> Put &gt; 55% = bearish</span>.
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_8px_#00D9A5] flex-shrink-0" />
+                      <p className="text-lg text-white leading-relaxed font-normal">
+                        <span className="font-semibold">Net Flow:</span> Differenza netta tra flussi call e put in milioni.
+                        Indica la <span className="italic">direzione dominante</span> del "smart money".
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-2.5 w-2 h-2 rounded-full bg-[#00D9A5] shadow-[0_0_10px_#00D9A5] flex-shrink-0" />
+                      <p className="text-lg text-white leading-relaxed font-normal">
+                        <span className="font-semibold text-[#00D9A5]">Gamma Exposure:</span> Esposizione dei market maker.
+                        <span className="text-[#00D9A5] font-semibold"> Positivo = supporto ai livelli</span>,
+                        <span className="text-red-400 font-semibold"> Negativo = volatilità amplificata</span>.
+                      </p>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="mt-2.5 w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_10px_#FACC15] flex-shrink-0" />
+                      <p className="text-lg text-white leading-relaxed font-normal">
+                        <span className="font-semibold text-yellow-400">Milioni (M/B):</span> Volume in milioni o miliardi di dollari.
+                        Flussi &gt;100M indicano <span className="italic">interesse istituzionale significativo</span>.
+                      </p>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="pt-5 border-t border-white/10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lightbulb className="w-5 h-5 text-[#00D9A5]" style={{ filter: 'drop-shadow(0 0 6px #00D9A5)' }} />
+                    <p className="text-base font-bold text-white uppercase tracking-[0.15em]">Consiglio</p>
+                  </div>
+                  <p className="text-lg text-white/90 leading-relaxed font-normal">
+                    Usa l'Options Flow come conferma direzionale: se COT e Options convergono sulla stessa direzione, la probabilità di successo aumenta significativamente.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Layers className="w-5 h-5 text-[#00D9A5]" />
           <span className="font-medium text-base text-white/90">Options Flow</span>
-          <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded">{selectedAsset}</span>
+          {/* Info Button */}
+          <button
+            onClick={() => setShowInfo(!showInfo)}
+            className="p-1.5 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-all opacity-40 hover:opacity-100"
+          >
+            <Info className="w-3.5 h-3.5 text-white" />
+          </button>
         </div>
         {/* Eye Icon Selector */}
         <div className="relative" onMouseLeave={() => setShowSelector(false)}>
@@ -815,7 +1167,7 @@ const OptionsPanel = ({ optionsData }) => {
       </div>
 
       {/* Asset Name - Prominent Display */}
-      <div className="flex items-center justify-between mb-4 px-2">
+      <div className="flex items-center justify-between mb-1 px-2">
         <span className="text-xl font-bold text-white">{selectedAsset}</span>
         <span className={cn(
           "px-2 py-1 rounded text-sm font-semibold",
@@ -828,94 +1180,115 @@ const OptionsPanel = ({ optionsData }) => {
       </div>
 
       {/* Three Circles Layout: Call | Net Flow | Put - Responsive */}
-      <div className="flex items-end justify-center gap-2 sm:gap-4 lg:gap-6 mb-4 p-3 sm:p-5 bg-white/5 rounded-xl overflow-hidden" style={{ minHeight: '140px' }}>
+      <div className="flex items-end justify-center gap-2 sm:gap-4 lg:gap-6 mb-0 p-0 overflow-hidden" style={{ minHeight: '80px' }}>
         {/* Left - Calls with Millions */}
         <div className="flex flex-col items-center flex-shrink min-w-0">
-          <div className="relative w-[60px] h-[60px] sm:w-[75px] sm:h-[75px] lg:w-[90px] lg:h-[90px]">
-            <MiniDonut
-              value={currentData.call_ratio}
-              size="100%"
-              strokeWidth={6}
-              color="#00D9A5"
-              showValue={false}
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn(
-                "text-[10px] sm:text-xs font-medium",
-                currentData.call_change >= 0 ? "text-[#00D9A5]" : "text-red-400"
-              )}>
-                {currentData.call_change >= 0 ? '+' : ''}{currentData.call_change}%
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-[#00D9A5]">{currentData.call_million}M</span>
-            </div>
+          <div className="relative w-[75px] h-[75px] sm:w-[90px] sm:h-[90px] lg:w-[105px] lg:h-[105px]">
+            {animationsReady && (
+              <MiniDonut
+                value={currentData.call_ratio}
+                size="100%"
+                strokeWidth={6}
+                color="#00D9A5"
+                showValue={false}
+              />
+            )}
+            {animationsReady && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className={cn(
+                  "text-[10px] sm:text-xs font-medium",
+                  currentData.call_change >= 0 ? "text-[#00D9A5]" : "text-red-400"
+                )}>
+                  <CountUp value={currentData.call_change} prefix={currentData.call_change >= 0 ? '+' : ''} suffix="%" duration={1200} delay={300} />
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-[#00D9A5]"><CountUp value={currentData.call_million} suffix="M" duration={1500} delay={500} /></span>
+              </div>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-white/60 mt-1 sm:mt-2 font-medium">Calls</p>
         </div>
 
         {/* Center - Net Flow (larger, prominent) */}
         <div className="flex flex-col items-center flex-shrink-0">
-          <div className="relative w-[80px] h-[80px] sm:w-[100px] sm:h-[100px] lg:w-[120px] lg:h-[120px]">
-            <MiniDonut
-              value={currentData.net_flow}
-              size="100%"
-              strokeWidth={8}
-              color={currentData.bias === 'bearish' ? "#EF4444" : "#00D9A5"}
-              showValue={false}
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn(
-                "text-[10px] sm:text-xs font-medium",
-                currentData.net_change >= 0 ? "text-[#00D9A5]" : "text-red-400"
-              )}>
-                {currentData.net_change >= 0 ? '+' : ''}{currentData.net_change}%
-              </span>
-              <span className={cn(
-                "text-lg sm:text-xl lg:text-2xl font-bold",
-                currentData.bias === 'bearish' ? "text-red-400" : "text-[#00D9A5]"
-              )}>
-                {currentData.net_million > 0 ? '+' : ''}{currentData.net_million}M
-              </span>
-            </div>
+          <div className="relative w-[95px] h-[95px] sm:w-[115px] sm:h-[115px] lg:w-[135px] lg:h-[135px]">
+            {animationsReady && (
+              <MiniDonut
+                value={currentData.net_flow}
+                size="100%"
+                strokeWidth={8}
+                color={currentData.bias === 'bearish' ? "#EF4444" : "#00D9A5"}
+                showValue={false}
+              />
+            )}
+            {animationsReady && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className={cn(
+                  "text-[10px] sm:text-xs font-medium",
+                  currentData.net_change >= 0 ? "text-[#00D9A5]" : "text-red-400"
+                )}>
+                  <CountUp value={currentData.net_change} prefix={currentData.net_change >= 0 ? '+' : ''} suffix="%" duration={1200} delay={300} />
+                </span>
+                <span className={cn(
+                  "text-lg sm:text-xl lg:text-2xl font-bold",
+                  currentData.bias === 'bearish' ? "text-red-400" : "text-[#00D9A5]"
+                )}>
+                  <CountUp value={currentData.net_million} prefix={currentData.net_million > 0 ? '+' : ''} suffix="M" duration={1800} delay={500} />
+                </span>
+              </div>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-white/60 mt-1 sm:mt-2 font-medium">Net Flow</p>
         </div>
 
         {/* Right - Puts with Millions */}
         <div className="flex flex-col items-center flex-shrink min-w-0">
-          <div className="relative w-[60px] h-[60px] sm:w-[75px] sm:h-[75px] lg:w-[90px] lg:h-[90px]">
-            <MiniDonut
-              value={currentData.put_ratio}
-              size="100%"
-              strokeWidth={6}
-              color="#EF4444"
-              showValue={false}
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className={cn(
-                "text-[10px] sm:text-xs font-medium",
-                currentData.put_change >= 0 ? "text-[#00D9A5]" : "text-red-400"
-              )}>
-                {currentData.put_change >= 0 ? '+' : ''}{currentData.put_change}%
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-red-400">{currentData.put_million}M</span>
-            </div>
+          <div className="relative w-[75px] h-[75px] sm:w-[90px] sm:h-[90px] lg:w-[105px] lg:h-[105px]">
+            {animationsReady && (
+              <MiniDonut
+                value={currentData.put_ratio}
+                size="100%"
+                strokeWidth={6}
+                color="#EF4444"
+                showValue={false}
+              />
+            )}
+            {animationsReady && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className={cn(
+                  "text-[10px] sm:text-xs font-medium",
+                  currentData.put_change >= 0 ? "text-[#00D9A5]" : "text-red-400"
+                )}>
+                  <CountUp value={currentData.put_change} prefix={currentData.put_change >= 0 ? '+' : ''} suffix="%" duration={1200} delay={300} />
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-red-400"><CountUp value={currentData.put_million} suffix="M" duration={1500} delay={500} /></span>
+              </div>
+            )}
           </div>
           <p className="text-xs sm:text-sm text-white/60 mt-1 sm:mt-2 font-medium">Puts</p>
         </div>
       </div>
 
+      {/* Summary Line */}
+      <p className="text-xs text-white/50 text-center mb-3 italic">
+        {currentData.bias === 'bullish'
+          ? 'Flussi istituzionali favorevoli al rialzo'
+          : currentData.bias === 'bearish'
+            ? 'Pressione ribassista sui derivati'
+            : 'Equilibrio tra opzioni call e put'}
+      </p>
+
       {/* Gamma Exposure Bar */}
-      <div className="mb-4 px-2">
+      <div className="mb-3 px-2">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-base text-white/90 font-medium">Gamma Exposure</span>
+          <span className="text-lg text-white/90 font-semibold">Gamma Exposure</span>
           <span className={cn(
-            "text-lg font-bold",
+            "text-xl font-bold",
             currentData.gamma_billion >= 0 ? "text-[#00D9A5]" : "text-red-400"
           )}>
             {currentData.gamma_billion >= 0 ? '+' : ''}{currentData.gamma_billion}B
           </span>
         </div>
-        <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-white/10 rounded-full overflow-hidden">
           <div
             className={cn(
               "h-full rounded-full transition-all",
@@ -932,9 +1305,13 @@ const OptionsPanel = ({ optionsData }) => {
           {currentData.interpretation.map((line, idx) => (
             <li key={idx} className="flex items-start gap-2">
               <span className="text-[#00D9A5] mt-0.5">•</span>
-              <span>{line}</span>
+              <TypewriterText text={line} speed={20} delay={300 + idx * 800} />
             </li>
           ))}
+          <li className="flex items-start gap-2">
+            <span className="text-[#00D9A5] mt-0.5">•</span>
+            <TypewriterText text="Monitorare variazioni giornaliere per conferma direzionale." speed={20} delay={300 + 3 * 800} />
+          </li>
         </ul>
       </div>
 
@@ -963,14 +1340,14 @@ const StrategySelectorPanel = ({ strategies, expandedNews, setExpandedNews }) =>
 
   // Today's signals for each strategy (simulated - would come from backend)
   const todaySignals = [
-    { strategyId: 'volguard-mr', asset: 'SP500', bias: 'Long', winRate: 72, summary: 'VIX < 15, range stretto. Entry su test POC, target 1R.', trigger: 'VIX Low + Range' },
-    { strategyId: 'gamma-magnet', asset: 'NAS100', bias: 'Long', winRate: 68, summary: 'Alta OI su strike 18000. Prezzo attratto verso gamma positivo.', trigger: 'High OI Strike' },
-    { strategyId: 'gamma-magnet', asset: 'SPY', bias: 'Short', winRate: 68, summary: 'Gamma flip a 500. Prezzo respinto, target 495.', trigger: 'Gamma Flip' },
-    { strategyId: 'strategy-1', asset: 'XAUUSD', bias: 'Long', winRate: 62, summary: 'Spike news su 2W Low. Attendi rejection e rientro sopra weekly low.', trigger: 'News Spike' },
-    { strategyId: 'strategy-1', asset: 'EURUSD', bias: 'Short', winRate: 62, summary: 'Prezzo esteso verso 2W High. Entry su rejection.', trigger: 'Premium Zone' },
-    { strategyId: 'rate-vol-alignment', asset: 'TLT', bias: 'Long', winRate: 62, summary: 'Yield in calo + VIX stabile. Bond rally atteso.', trigger: 'Rate-Vol Align' },
-    { strategyId: 'strategy-2', asset: 'NAS100', bias: 'Long', winRate: 58, summary: 'VIX in calo, prezzo esteso verso low. Fade setup.', trigger: 'VIX Fade' },
-    { strategyId: 'multi-day-ra', asset: 'BTC', bias: 'Long', winRate: 56, summary: 'Rejection con wick lunga su supporto multi-day.', trigger: 'Multi-Day Rejection' },
+    { strategyId: 'volguard-mr', asset: 'SP500', bias: 'Long', winRate: 72, summary: 'VIX 17.62 stabile, range post-NFP. SPX tra 6900-6950. Entry su test gamma flip 6900.', trigger: 'VIX Stable + Range' },
+    { strategyId: 'gamma-magnet', asset: 'NAS100', bias: 'Short', winRate: 68, summary: 'Speculatori COT net short. Prezzo vicino a call wall, respinto. Target 21200.', trigger: 'COT Short + Call Wall' },
+    { strategyId: 'gamma-magnet', asset: 'SP500', bias: 'Long', winRate: 68, summary: 'Gamma positivo sopra 6900. Prezzo attratto verso 6950. Supporto forte.', trigger: 'Gamma Magnet 6950' },
+    { strategyId: 'strategy-1', asset: 'XAUUSD', bias: 'Long', winRate: 62, summary: 'Gold a $5055 dopo sell-off. Long liquidation completata. Rimbalzo atteso da supporto.', trigger: 'Post-Liquidation Bounce' },
+    { strategyId: 'strategy-1', asset: 'BTCUSD', bias: 'Short', winRate: 62, summary: 'BTC $67K in sell-off da $100K. Put flow dominante. Target $65K se perde supporto.', trigger: 'Breakdown Setup' },
+    { strategyId: 'rate-vol-alignment', asset: 'EURUSD', bias: 'Long', winRate: 62, summary: 'DXY debole a 96.60. EUR net long speculativo max 6 mesi. Target 1.1950.', trigger: 'USD Weakness' },
+    { strategyId: 'strategy-2', asset: 'NAS100', bias: 'Long', winRate: 58, summary: 'VIX contenuto, Tech in correzione. Fade setup su supporto 21200.', trigger: 'VIX Low + Dip Buy' },
+    { strategyId: 'multi-day-ra', asset: 'XAUUSD', bias: 'Long', winRate: 56, summary: 'Rejection con wick lunga su $5000. Supporto multi-day testato con successo.', trigger: 'Multi-Day Support Hold' },
   ];
 
   // Filter signals by selected strategies and sort by win rate
@@ -1096,7 +1473,7 @@ const StrategySelectorPanel = ({ strategies, expandedNews, setExpandedNews }) =>
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: 0.4 }}
                       className="overflow-hidden"
                     >
                       <div className="mt-3 p-3 bg-black/40 rounded-lg border border-[#00D9A5]/20">
@@ -1123,13 +1500,13 @@ const ActivitySidebar = ({ news, events, strategies }) => {
   const [expandedNews, setExpandedNews] = useState(null);
 
   const newsData = news || [
-    { title: 'US Core CPI m/m', time: '14:30', impact: 'high', currency: 'USD', forecast: '0.3%', previous: '0.2%', actual: '0.4%', countdown: 'Uscito', summary: 'Inflazione core sopra attese. Possibile ritardo tagli Fed. USD bullish.' },
-    { title: 'US CPI y/y', time: '14:30', impact: 'high', currency: 'USD', forecast: '3.1%', previous: '3.4%', actual: '3.1%', countdown: 'Uscito', summary: 'Inflazione in linea. Mercati stabili, risk-on moderato.' },
-    { title: 'Fed Chair Powell Speech', time: '16:00', impact: 'high', currency: 'USD', forecast: '-', previous: '-', actual: null, countdown: '55m', summary: 'Atteso tono hawkish post-CPI. Volatilità attesa su indici e USD.' },
-    { title: 'US Retail Sales m/m', time: '14:30', impact: 'high', currency: 'USD', forecast: '0.4%', previous: '0.6%', actual: '0.3%', countdown: 'Uscito', summary: 'Vendite sotto attese. Consumi rallentano, possibile debolezza equity.' },
-    { title: 'US Unemployment Claims', time: '14:30', impact: 'medium', currency: 'USD', forecast: '218K', previous: '223K', actual: null, countdown: 'Uscito', summary: 'Mercato lavoro resta solido. Supporta scenario soft-landing.' },
-    { title: 'FOMC Minutes', time: '20:00', impact: 'high', currency: 'USD', forecast: '-', previous: '-', actual: null, countdown: '4h 55m', summary: 'Dettagli su prossime mosse Fed. Impatto su bond e USD.' },
-    { title: 'US Building Permits', time: '14:30', impact: 'medium', currency: 'USD', forecast: '1.52M', previous: '1.49M', actual: null, countdown: 'Uscito', summary: 'Settore immobiliare in focus. Impatto limitato su mercati.' },
+    { title: 'NFP (Jan)', time: '14:30', impact: 'high', currency: 'USD', forecast: '65K', previous: '256K', actual: '130K', countdown: 'Uscito', summary: 'Payrolls a 130K, il doppio delle attese. Disoccupazione scesa a 4.3%. Mercato prezza taglio Fed a luglio, non più giugno.' },
+    { title: 'Unemployment Rate', time: '14:30', impact: 'high', currency: 'USD', forecast: '4.4%', previous: '4.4%', actual: '4.3%', countdown: 'Uscito', summary: 'Tasso disoccupazione migliorato. Mercato lavoro solido nonostante revisioni al ribasso del 2025 (-862K).' },
+    { title: 'Average Hourly Earnings', time: '14:30', impact: 'high', currency: 'USD', forecast: '3.5%', previous: '3.6%', actual: '3.7%', countdown: 'Uscito', summary: 'Salari in crescita 3.7% YoY, sopra inflazione. Pressione hawkish sulla Fed.' },
+    { title: 'Fed Speeches', time: '16:00', impact: 'medium', currency: 'USD', forecast: '-', previous: '-', actual: null, countdown: '15m', summary: 'Diversi policymaker Fed in programma. Tono atteso post-NFP forte: cautela sui tagli.' },
+    { title: 'US 10Y Auction', time: '19:00', impact: 'medium', currency: 'USD', forecast: '4.18%', previous: '4.14%', actual: null, countdown: '3h', summary: 'Asta Treasury 10Y. Yield salito a 4.18% dopo NFP. Monitorare domanda istituzionale.' },
+    { title: 'CPI (Jan)', time: 'Ven 14:30', impact: 'high', currency: 'USD', forecast: '2.5%', previous: '2.9%', actual: null, countdown: '2 giorni', summary: 'Dato inflazione cruciale dopo NFP forte. Se sopra attese, taglio Fed rinviato ulteriormente.' },
+    { title: 'CBO Budget Outlook', time: '18:00', impact: 'medium', currency: 'USD', forecast: '-', previous: '-', actual: null, countdown: '2h', summary: 'Pubblicazione outlook fiscale CBO. Focus su deficit e traiettoria debito pubblico USA.' },
   ];
 
   return (
@@ -1195,7 +1572,7 @@ const ActivitySidebar = ({ news, events, strategies }) => {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{ duration: 0.4 }}
                     className="overflow-hidden"
                   >
                     <div className="mt-3 p-3 bg-white border border-slate-200 rounded-lg dark:bg-black/40 dark:border-[#00D9A5]/20">
@@ -1386,7 +1763,7 @@ const DailyBiasHeader = ({ analyses, vix, regime, nextEvent }) => {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.4 }}
             className="overflow-hidden"
           >
             <div className="p-3 bg-black/40 rounded-lg border border-[#00D9A5]/20">
@@ -1440,6 +1817,12 @@ export default function DashboardPage() {
   const [favoriteCOT, setFavoriteCOT] = useState(['NAS100', 'SP500']);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
+  // Typewriter animation state
+  const [introPhase, setIntroPhase] = useState('typing'); // 'typing' | 'visible' | 'done'
+  const [typedChars, setTypedChars] = useState(0);
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const biasBarRef = useRef(null);
+
   const fetchData = useCallback(async () => {
     try {
       const [multiRes, cotRes] = await Promise.all([
@@ -1467,11 +1850,11 @@ export default function DashboardPage() {
 
   // Mock data for demo mode when backend is unavailable
   const mockAnalyses = {
-    'XAUUSD': { price: 4765.8, direction: 'Up', confidence: 63, impulse: 'Prosegue', drivers: [{ name: 'Technical', impact: 'Bullish' }] },
-    'NAS100': { price: 25442, direction: 'Up', confidence: 60, impulse: 'Prosegue', drivers: [{ name: 'Momentum', impact: 'Strong' }] },
-    'SP500': { price: 6928, direction: 'Up', confidence: 63, impulse: 'Prosegue', drivers: [{ name: 'Risk-on', impact: 'Positive' }] },
-    'EURUSD': { price: 1.0845, direction: 'Down', confidence: 55, impulse: 'Correzione', drivers: [{ name: 'USD Strength', impact: 'Bearish' }] },
-    'BTCUSD': { price: 98420, direction: 'Up', confidence: 70, impulse: 'Prosegue', drivers: [{ name: 'ETF Flows', impact: 'Bullish' }] },
+    'XAUUSD': { price: 5055.2, direction: 'Up', confidence: 58, impulse: 'Rallenta', drivers: [{ name: 'Safe Haven', impact: 'Bullish' }, { name: 'Long liquidation', impact: 'Cautela' }] },
+    'NAS100': { price: 21450, direction: 'Up', confidence: 55, impulse: 'Laterale', drivers: [{ name: 'NFP forte', impact: 'Positivo' }, { name: 'Tech weakness', impact: 'Cautela' }] },
+    'SP500': { price: 6941.5, direction: 'Up', confidence: 52, impulse: 'Laterale', drivers: [{ name: 'NFP Beat', impact: 'Supportivo' }, { name: 'Fed hawkish', impact: 'Freno' }] },
+    'EURUSD': { price: 1.1870, direction: 'Up', confidence: 65, impulse: 'Prosegue', drivers: [{ name: 'USD Debole', impact: 'Bullish' }, { name: 'ECB Hawkish', impact: 'Supportivo' }] },
+    'BTCUSD': { price: 67230, direction: 'Down', confidence: 68, impulse: 'Sell-off', drivers: [{ name: 'Risk-off crypto', impact: 'Bearish' }, { name: 'Liquidazioni', impact: 'Pressione' }] },
   };
 
   // Use real data if available, otherwise fallback to mock data
@@ -1490,9 +1873,9 @@ export default function DashboardPage() {
 
   // Options mock data
   const optionsData = {
-    call_ratio: 58,
-    put_ratio: 42,
-    bias: 'bullish'
+    call_ratio: 52,
+    put_ratio: 48,
+    bias: 'neutral'
   };
 
   // Mock COT data for demo mode
@@ -1501,25 +1884,25 @@ export default function DashboardPage() {
       'NAS100': {
         bias: 'Bear',
         categories: {
-          asset_manager: { long: 35000, short: 85000 }
+          asset_manager: { long: 58000, short: 82000 }
         }
       },
       'SP500': {
         bias: 'Bear',
         categories: {
-          asset_manager: { long: 42000, short: 78000 }
+          asset_manager: { long: 95000, short: 214941 }
         }
       },
       'XAUUSD': {
         bias: 'Bull',
         categories: {
-          managed_money: { long: 120000, short: 45000 }
+          managed_money: { long: 115000, short: 52000 }
         }
       },
       'EURUSD': {
         bias: 'Bull',
         categories: {
-          asset_manager: { long: 95000, short: 60000 }
+          asset_manager: { long: 185000, short: 48000 }
         }
       },
     }
@@ -1536,54 +1919,155 @@ export default function DashboardPage() {
     return 'Buonasera';
   };
 
+  // Build the full intro text for the typewriter
+  const traderName = user?.name || 'Demo Trader';
+  const greeting = getGreeting();
+  const introLines = useMemo(() => [
+    { text: `${greeting}, `, highlight: traderName, id: 'greeting' },
+    { text: '"La mente è tutto. Ciò che pensi, diventi." — Buddha', id: 'quote' },
+    { text: 'Karion AI LIVE', id: 'status' },
+  ], [greeting, traderName]);
+
+  // Calculate total characters for all lines
+  const totalChars = useMemo(() => {
+    return introLines.reduce((acc, line) => {
+      return acc + line.text.length + (line.highlight?.length || 0);
+    }, 0);
+  }, [introLines]);
+
+  // Typewriter animation effect
+  useEffect(() => {
+    if (introPhase !== 'typing') return;
+
+    const speed = Math.max(20, Math.min(50, 2500 / totalChars)); // Adjust speed to fit in ~2.5s
+
+    if (typedChars < totalChars) {
+      const timer = setTimeout(() => {
+        setTypedChars(prev => prev + 1);
+      }, speed);
+      return () => clearTimeout(timer);
+    } else {
+      // All typed — hold for 1.5s then scroll
+      setIntroPhase('visible');
+    }
+  }, [typedChars, totalChars, introPhase]);
+
+  // After "visible" phase, wait then scroll
+  useEffect(() => {
+    if (introPhase !== 'visible') return;
+
+    const scrollTimer = setTimeout(() => {
+      setIntroPhase('done');
+      if (biasBarRef.current) {
+        biasBarRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      // After scroll animation finishes, hide the header completely
+      setTimeout(() => {
+        setHeaderHidden(true);
+      }, 800);
+    }, 1500);
+
+    return () => clearTimeout(scrollTimer);
+  }, [introPhase]);
+
+  // Helper: get visible text for a given line based on how many chars have been typed
+  const getVisibleText = (lineIndex) => {
+    let charsBefore = 0;
+    for (let i = 0; i < lineIndex; i++) {
+      charsBefore += introLines[i].text.length + (introLines[i].highlight?.length || 0);
+    }
+    const line = introLines[lineIndex];
+    const fullLen = line.text.length + (line.highlight?.length || 0);
+    const charsForThisLine = Math.max(0, Math.min(fullLen, typedChars - charsBefore));
+
+    if (charsForThisLine <= 0) return { main: '', highlighted: '', showCursor: false };
+
+    const mainLen = line.text.length;
+    const highlightLen = line.highlight?.length || 0;
+
+    if (charsForThisLine <= mainLen) {
+      return {
+        main: line.text.slice(0, charsForThisLine),
+        highlighted: '',
+        showCursor: typedChars < totalChars && charsForThisLine === Math.max(0, Math.min(fullLen, typedChars - charsBefore))
+      };
+    } else {
+      return {
+        main: line.text,
+        highlighted: line.highlight?.slice(0, charsForThisLine - mainLen) || '',
+        showCursor: typedChars < totalChars && charsForThisLine === Math.max(0, Math.min(fullLen, typedChars - charsBefore))
+      };
+    }
+  };
+
+  const cursorBlink = introPhase === 'typing' ? 'animate-pulse' : '';
+
   return (
     <div className="dashboard-page" data-testid="dashboard-page" id="dashboard-main">
-      {/* Header - Enhanced with actions */}
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white/95">
-            {getGreeting()}, <span className="text-[#00D9A5]">{user?.name || 'trader'}</span>
-          </h1>
-          <p className="text-base text-white/50 mt-1 italic">
-            "La mente è tutto. Ciò che pensi, diventi." — Buddha
-          </p>
-          <div className="flex items-center gap-3 mt-2 text-base text-white/50">
-            <span className="flex items-center gap-1">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00D9A5] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00D9A5]"></span>
+      {/* Header - Typewriter Animation */}
+      {!headerHidden && (
+        <motion.div
+          className="mb-6 flex items-start justify-between gap-4"
+          animate={introPhase === 'done' ? { opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' } : { opacity: 1, height: 'auto' }}
+          transition={{ duration: 0.5, ease: 'easeInOut' }}
+        >
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-white/95">
+              {introPhase !== 'done' ? (
+                <>
+                  {getVisibleText(0).main}
+                  <span className="text-[#00D9A5]">{getVisibleText(0).highlighted}</span>
+                  {getVisibleText(0).showCursor && (
+                    <span className={cn("inline-block w-[2px] h-[1em] bg-[#00D9A5] ml-0.5 align-middle", cursorBlink)} />
+                  )}
+                </>
+              ) : (
+                <>
+                  {getGreeting()}, <span className="text-[#00D9A5]">{user?.name || 'trader'}</span>
+                </>
+              )}
+            </h1>
+            {introPhase !== 'done' ? (
+              <p className="text-base text-white/50 mt-1 italic min-h-[1.5em]">
+                {getVisibleText(1).main}
+                {getVisibleText(1).showCursor && (
+                  <span className={cn("inline-block w-[2px] h-[1em] bg-white/50 ml-0.5 align-middle", cursorBlink)} />
+                )}
+              </p>
+            ) : (
+              <p className="text-base text-white/50 mt-1 italic">
+                "La mente è tutto. Ciò che pensi, diventi." — Buddha
+              </p>
+            )}
+            <div className="flex items-center gap-3 mt-2 text-base text-white/50">
+              <span className="flex items-center gap-1">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00D9A5] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00D9A5]"></span>
+                </span>
+                {introPhase !== 'done' ? (
+                  <>
+                    {getVisibleText(2).main}
+                    {getVisibleText(2).showCursor && (
+                      <span className={cn("inline-block w-[2px] h-[1em] bg-white/50 ml-0.5 align-middle", cursorBlink)} />
+                    )}
+                  </>
+                ) : (
+                  'Karion AI LIVE'
+                )}
               </span>
-              Karion AI Active
-            </span>
-            <Clock className="w-4 h-4" />
-            {lastUpdate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+            </div>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 
-                       border border-white/10 hover:border-white/20 transition-all
-                       disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Refresh data"
-          >
-            <RefreshCw className={cn("w-5 h-5 text-white/60", loading && "animate-spin")} />
-            <span className="text-base text-white/60 hidden sm:inline">Aggiorna</span>
-          </button>
-          <ExportButton targetId="dashboard-main" filename="karion-dashboard" />
-        </div>
-      </div>
+        </motion.div>
+      )}
 
       {/* Daily Bias + VIX + Regime - Compact Row */}
-      <div className="mb-6">
+      <div className="mb-6" ref={biasBarRef} style={{ scrollMarginTop: '16px' }}>
         <DailyBiasHeader
           analyses={analysesData}
-          vix={vix || { current: 17.44, change: -2.3 }}
+          vix={vix || { current: 17.62, change: -0.96 }}
           regime={regime || 'risk-on'}
-          nextEvent={next_event || { event: 'Fed Chair Powell Speech', countdown: '55m' }}
+          nextEvent={next_event || { event: 'CPI Data Release (Ven)', countdown: '2g' }}
         />
       </div>
 
@@ -1597,12 +2081,13 @@ export default function DashboardPage() {
             assets={assetsList}
             favoriteCharts={favoriteCharts}
             onFavoriteChange={setFavoriteCharts}
+            animationsReady={headerHidden}
           />
 
           {/* Options + COT Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
-            <OptionsPanel optionsData={optionsData} />
-            <COTPanel cotData={cotDataToUse} favoriteCOT={favoriteCOT} onFavoriteCOTChange={setFavoriteCOT} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+            <OptionsPanel optionsData={optionsData} animationsReady={headerHidden} />
+            <COTPanel cotData={cotDataToUse} favoriteCOT={favoriteCOT} onFavoriteCOTChange={setFavoriteCOT} animationsReady={headerHidden} />
           </div>
         </div>
 

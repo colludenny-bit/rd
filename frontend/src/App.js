@@ -13,6 +13,7 @@ import Layout from './components/layout/Layout';
 import { LockScreen } from './components/layout/LockScreen';
 
 // Pages
+import LandingPage from './components/pages/LandingPage';
 import AuthPage from './components/pages/AuthPage';
 import DashboardPage from './components/pages/DashboardPage';
 import StrategyPage from './components/pages/StrategyPage';
@@ -34,12 +35,14 @@ import MacroEconomyPage from './components/pages/MacroEconomyPage';
 import CryptoPage from './components/pages/CryptoPage';
 import CalculatorPage from './components/pages/CalculatorPage';
 import PerformancePage from './components/pages/PerformancePage';
+import PricingPage from './components/pages/PricingPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, isInitialized } = useAuth();
 
-  if (loading) {
+  // Wait until auth is fully initialized before making routing decisions
+  if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -51,7 +54,7 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return children;
@@ -59,9 +62,10 @@ const ProtectedRoute = ({ children }) => {
 
 // Public Route Component (redirect if authenticated)
 const PublicRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { user, isInitialized } = useAuth();
 
-  if (loading) {
+  // Wait until auth is fully initialized before making routing decisions
+  if (!isInitialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin" />
@@ -70,7 +74,7 @@ const PublicRoute = ({ children }) => {
   }
 
   if (user) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/app" replace />;
   }
 
   return children;
@@ -81,6 +85,14 @@ function AppRoutes() {
     <Routes>
       {/* Public Routes */}
       <Route
+        path="/"
+        element={
+          <PublicRoute>
+            <LandingPage />
+          </PublicRoute>
+        }
+      />
+      <Route
         path="/auth"
         element={
           <PublicRoute>
@@ -88,9 +100,14 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
-
-      {/* Protected Routes */}
       <Route
+        path="/pricing"
+        element={<PricingPage />}
+      />
+
+      {/* Protected Routes - Main App */}
+      <Route
+        path="/app"
         element={
           <ProtectedRoute>
             <Layout />
@@ -119,7 +136,7 @@ function AppRoutes() {
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 
-      {/* Catch all */}
+      {/* Catch all - Redirect to Landing */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

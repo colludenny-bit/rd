@@ -34,7 +34,7 @@ const CircularProgress = ({ value, maxValue = 100, size = 80, strokeWidth = 8, c
                 strokeDasharray={circumference}
                 initial={{ strokeDashoffset: circumference }}
                 animate={{ strokeDashoffset: offset }}
-                transition={{ duration: 1.2, ease: "easeOut" }}
+                transition={{ duration: 2.0, ease: "easeOut" }}
                 style={{ filter: `drop-shadow(0 0 8px ${color}50)` }}
             />
         </svg>
@@ -66,7 +66,7 @@ const SemiCircleGauge = ({ value, label, color = '#00D9A5', size = 80 }) => {
                     strokeLinecap="round"
                     initial={{ pathLength: 0 }}
                     animate={{ pathLength: percentage / 100 }}
-                    transition={{ duration: 1.2, ease: "easeOut" }}
+                    transition={{ duration: 2.0, ease: "easeOut" }}
                     style={{ filter: `drop-shadow(0 0 8px ${color}50)` }}
                 />
             </svg>
@@ -118,7 +118,7 @@ const MiniAreaChart = ({ data = [30, 45, 25, 60, 40, 70, 50], color = '#00D9A5',
                 fill="url(#areaGradient)"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.8 }}
+                transition={{ duration: 1.3 }}
             />
             <motion.polyline
                 points={points}
@@ -129,7 +129,7 @@ const MiniAreaChart = ({ data = [30, 45, 25, 60, 40, 70, 50], color = '#00D9A5',
                 strokeLinejoin="round"
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
-                transition={{ duration: 1.2, ease: "easeOut" }}
+                transition={{ duration: 2.0, ease: "easeOut" }}
                 style={{ filter: `drop-shadow(0 0 4px ${color})` }}
             />
         </svg>

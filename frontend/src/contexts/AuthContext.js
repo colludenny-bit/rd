@@ -11,11 +11,13 @@ const DEMO_MODE = true;
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(DEMO_MODE ? { id: 'demo', name: 'Demo Trader', email: 'trader@karion.io' } : null);
   const [token, setToken] = useState(DEMO_MODE ? 'demo-token' : localStorage.getItem('token'));
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!DEMO_MODE);
+  const [isInitialized, setIsInitialized] = useState(DEMO_MODE); // Auth is ready immediately in DEMO_MODE
 
   useEffect(() => {
     if (DEMO_MODE) {
-      setLoading(false);
+      // In demo mode, user is already set synchronously, no loading needed
+      setIsInitialized(true);
       return;
     }
     if (token) {
@@ -23,6 +25,7 @@ export const AuthProvider = ({ children }) => {
       fetchUser();
     } else {
       setLoading(false);
+      setIsInitialized(true);
     }
   }, [token]);
 
@@ -35,6 +38,7 @@ export const AuthProvider = ({ children }) => {
       logout();
     } finally {
       setLoading(false);
+      setIsInitialized(true);
     }
   };
 
@@ -72,7 +76,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isInitialized, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
