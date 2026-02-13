@@ -83,6 +83,10 @@ security = HTTPBearer()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Scheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+scheduler = AsyncIOScheduler()
+
 # ==================== MODELS ====================
 
 class UserCreate(BaseModel):
@@ -2101,6 +2105,26 @@ async def update_language(language: str, current_user: dict = Depends(get_curren
     await db.users.update_one({"id": current_user["id"]}, {"$set": {"language": language}})
     return {"status": "updated", "language": language}
 
+# ==================== BACKGROUND JOBS ====================
+
+async def auto_market_analysis_job():
+    """Background job to analyze market every 3 hours"""
+    logger.info("🔄 Running 3-hour Auto Market Analysis...")
+    try:
+        # 1. Ensure fresh data
+        prices = await get_market_prices()
+        
+        # 2. Generate AI Analysis
+        if GOOGLE_API_KEY:
+            model = genai.GenerativeModel("gemini-flash-latest")
+            prompt = f"Analizza sinteticamente questi prezzi di mercato per un trader intraday: {prices}. Focus su trend e anomalie."
+            response = await model.generate_content_async(prompt)
+            # Store or log result (for now just log)
+            logger.info(f"✅ Auto-Analysis Complete: {response.text[:100]}...")
+            # Here we could save to DB: db.market_reports.insert_one({...})
+    except Exception as e:
+        logger.error(f"❌ Auto-Analysis Failed: {e}")
+
 # ==================== ROOT ====================
 
 @api_router.get("/")
@@ -2118,8 +2142,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_event():
+    # Start scheduler
+    if not scheduler.running:
+        scheduler.add_job(auto_market_analysis_job, 'interval', hours=3, id='market_analysis_3h')
+        scheduler.start()
+        logger.info("🕒 Background Scheduler started: Auto-Analysis every 3 hours")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    if scheduler.running:
+        scheduler.shutdown()
     if not DEMO_MODE:
         client.close()
 
@@ -2128,4 +2162,5 @@ if __name__ == "__main__":
     print("🚀 Starting Karion Trading OS Backend...")
     print(f"📊 Mode: {'DEMO (in-memory)' if DEMO_MODE else 'PRODUCTION (MongoDB)'}")
     print("🌐 Server running at http://localhost:8000")
+    print("🕒 Background Scheduler: Active (Every 3h)")
     uvicorn.run(app, host="0.0.0.0", port=8000)
