@@ -69,8 +69,11 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'tradingos-secret-key-2024')
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
-# Emergent LLM Key
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+# Google Gemini AI Key
+import google.generativeai as genai
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY', '')
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
 
 app = FastAPI(title="TradingOS API")
 api_router = APIRouter(prefix="/api")
@@ -744,18 +747,16 @@ async def analyze_eod(data: SharkMindRequest, current_user: dict = Depends(get_c
 async def create_journal_entry(data: JournalEntryCreate, current_user: dict = Depends(get_current_user)):
     # Generate AI suggestions based on errors
     ai_suggestions = []
-    if EMERGENT_LLM_KEY and data.errors_today:
+    if GOOGLE_API_KEY and data.errors_today:
         try:
-            from emergentintegrations.llm.chat import LlmChat, UserMessage
-            chat = LlmChat(
-                api_key=EMERGENT_LLM_KEY,
-                session_id=f"journal-{current_user['id']}-{datetime.now().isoformat()}",
-                system_message="Sei un coach di trading esperto. Analizza gli errori del trader e dai 3 consigli pratici brevi in italiano."
-            ).with_model("openai", "gpt-5.2")
-            
-            msg = UserMessage(text=f"Errori di oggi: {data.errors_today}\nLezioni apprese: {data.lessons_learned}")
-            response = await chat.send_message(msg)
-            ai_suggestions = [s.strip() for s in response.split('\n') if s.strip()][:3]
+            model = genai.GenerativeModel(
+                model_name="gemini-flash-latest",
+                system_instruction="Sei un coach di trading esperto. Analizza gli errori del trader e dai 3 consigli pratici brevi in italiano."
+            )
+            response = await model.generate_content_async(
+                f"Errori di oggi: {data.errors_today}\nLezioni apprese: {data.lessons_learned}"
+            )
+            ai_suggestions = [s.strip() for s in response.text.split('\n') if s.strip()][:3]
         except Exception as e:
             logger.error(f"AI suggestion error: {e}")
             ai_suggestions = ["Rivedi il tuo piano di trading", "Mantieni la disciplina", "Gestisci le emozioni"]
@@ -783,10 +784,8 @@ async def analyze_journal_entry(data: dict, current_user: dict = Depends(get_cur
     entry = data.get("entry", {})
     
     # Generate AI response in coach-friend style
-    if EMERGENT_LLM_KEY:
+    if GOOGLE_API_KEY:
         try:
-            from emergentintegrations.llm.chat import LlmChat, UserMessage
-            
             system_message = """Sei Karion, il coach-amico del trader. Il tuo compito è aiutare, non interrogare.
             
 Rispondi in 4 blocchi brevi:
@@ -798,11 +797,10 @@ Rispondi in 4 blocchi brevi:
 Stile: caldo, diretto, senza giudicare. Se c'è un errore, trattalo come informazione utile.
 Rispondi in JSON con chiavi: understood, keyPoint, wellDone, optimization"""
             
-            chat = LlmChat(
-                api_key=EMERGENT_LLM_KEY,
-                session_id=f"journal-analyze-{current_user['id']}-{datetime.now().timestamp()}",
-                system_message=system_message
-            ).with_model("openai", "gpt-5.2")
+            model = genai.GenerativeModel(
+                model_name="gemini-flash-latest",
+                system_instruction=system_message
+            )
             
             prompt = f"""Analizza questa entry del trader:
 - Traded: {entry.get('traded', 'N/A')}
@@ -813,17 +811,16 @@ Rispondi in JSON con chiavi: understood, keyPoint, wellDone, optimization"""
 - Cosa cambierebbe: {entry.get('changeOne', '')}
 - PnL: {entry.get('pnl', 'N/A')}"""
 
-            msg = UserMessage(text=prompt)
-            response = await chat.send_message(msg)
+            response = await model.generate_content_async(prompt)
             
             # Try to parse JSON response
             try:
                 import json
-                return json.loads(response)
+                return json.loads(response.text)
             except:
                 # Fallback parsing
                 return {
-                    "understood": response[:200] if len(response) > 200 else response,
+                    "understood": response.text[:200] if len(response.text) > 200 else response.text,
                     "keyPoint": "Hai mostrato consapevolezza nel riconoscere le tue emozioni.",
                     "wellDone": "Hai completato il journal, questo è già un grande passo.",
                     "optimization": entry.get('changeOne', 'Domani, concentrati su una sola cosa: seguire il piano.')
@@ -865,18 +862,14 @@ async def optimize_strategy(strategy_id: str, current_user: dict = Depends(get_c
         raise HTTPException(status_code=404, detail="Strategy not found")
     
     optimizations = []
-    if EMERGENT_LLM_KEY:
+    if GOOGLE_API_KEY:
         try:
-            from emergentintegrations.llm.chat import LlmChat, UserMessage
-            chat = LlmChat(
-                api_key=EMERGENT_LLM_KEY,
-                session_id=f"strategy-{strategy_id}",
-                system_message="Sei un esperto di trading. Analizza questa strategia e suggerisci 3-5 ottimizzazioni concrete in italiano."
-            ).with_model("openai", "gpt-5.2")
-            
-            msg = UserMessage(text=f"Strategia: {strategy['content']}")
-            response = await chat.send_message(msg)
-            optimizations = [s.strip() for s in response.split('\n') if s.strip()][:5]
+            model = genai.GenerativeModel(
+                model_name="gemini-flash-latest",
+                system_instruction="Sei un esperto di trading. Analizza questa strategia e suggerisci 3-5 ottimizzazioni concrete in italiano."
+            )
+            response = await model.generate_content_async(f"Strategia: {strategy['content']}")
+            optimizations = [s.strip() for s in response.text.split('\n') if s.strip()][:5]
         except Exception as e:
             logger.error(f"Strategy optimization error: {e}")
             optimizations = ["Definisci chiaramente entry e exit", "Imposta stop loss", "Testa su dati storici"]
@@ -972,12 +965,10 @@ async def like_post(post_id: str, current_user: dict = Depends(get_current_user)
 
 @api_router.post("/ai/chat")
 async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_current_user)):
-    if not EMERGENT_LLM_KEY:
+    if not GOOGLE_API_KEY:
         return {"response": "AI non configurata. Contatta l'amministratore."}
     
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
-        
         system_prompts = {
             "general": "Sei Karion, un AI coach di trading personale. Parla in modo amichevole, professionale e intimo. Rispondi sempre in italiano senza link o formattazione markdown complessa. Sii conciso ma empatico.",
             "coach": "Sei Karion, coach di trading personale. Dai consigli pratici e motivazionali. Sii empatico e professionale.",
@@ -988,17 +979,15 @@ async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_curre
             "performance": "Sei Karion coach di performance. Analizza statistiche e indica aree di miglioramento."
         }
         
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"karion-{current_user['id']}-{datetime.now().timestamp()}",
-            system_message=system_prompts.get(request.context, system_prompts["general"])
-        ).with_model("openai", "gpt-5.2")
+        model = genai.GenerativeModel(
+            model_name="gemini-flash-latest",
+            system_instruction=system_prompts.get(request.context, system_prompts["general"])
+        )
         
         last_message = request.messages[-1].content if request.messages else ""
-        msg = UserMessage(text=last_message)
-        response = await chat.send_message(msg)
+        response = await model.generate_content_async(last_message)
         
-        return {"response": response}
+        return {"response": response.text}
     except Exception as e:
         logger.error(f"AI chat error: {e}")
         return {"response": f"Errore AI: {str(e)}"}
@@ -1006,11 +995,11 @@ async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_curre
 @api_router.post("/ai/intimate-analysis")
 async def ai_intimate_analysis(current_user: dict = Depends(get_current_user)):
     """Generate a deep, personal analysis of the trader's journey"""
-    if not EMERGENT_LLM_KEY:
+    if not GOOGLE_API_KEY:
         return {"analysis": "AI non configurata."}
     
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        # Using google.generativeai configured at module level
         
         # Fetch user's data from various sources
         user_id = current_user['id']
@@ -1053,11 +1042,10 @@ Struttura l'analisi in:
 
 Non usare emoji, link o formattazione markdown complessa. Scrivi in modo naturale e umano."""
 
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"intimate-{user_id}-{datetime.now().timestamp()}",
-            system_message=system_message
-        ).with_model("openai", "gpt-5.2")
+        model = genai.GenerativeModel(
+            model_name="gemini-flash-latest",
+            system_instruction=system_message
+        )
         
         prompt = f"""Analizza questo trader in modo intimo e personale.
 
@@ -1066,10 +1054,9 @@ Dati disponibili:
 
 Scrivi un'analisi personale come se lo conoscessi da tempo. Sii sincero, empatico e costruttivo."""
 
-        msg = UserMessage(text=prompt)
-        response = await chat.send_message(msg)
+        response = await model.generate_content_async(prompt)
         
-        return {"analysis": response}
+        return {"analysis": response.text}
     except Exception as e:
         logger.error(f"Intimate analysis error: {e}")
         # Return a thoughtful fallback
@@ -1182,17 +1169,14 @@ async def analyze_pdf(file: UploadFile = File(...), current_user: dict = Depends
         
         # AI Analysis
         ai_analysis = ""
-        if EMERGENT_LLM_KEY and text:
+        if GOOGLE_API_KEY and text:
             try:
-                from emergentintegrations.llm.chat import LlmChat, UserMessage
-                chat = LlmChat(
-                    api_key=EMERGENT_LLM_KEY,
-                    session_id=f"pdf-{current_user['id']}-{datetime.now().timestamp()}",
-                    system_message="Sei un esperto di analisi report MT5. Analizza questo report e identifica: Win Rate, Drawdown, Profit Factor, numero trade. Dai consigli di miglioramento in italiano."
-                ).with_model("openai", "gpt-5.2")
-                
-                msg = UserMessage(text=f"Analizza questo report MT5:\n{text[:3000]}")
-                ai_analysis = await chat.send_message(msg)
+                model = genai.GenerativeModel(
+                    model_name="gemini-flash-latest",
+                    system_instruction="Sei un esperto di analisi report MT5. Analizza questo report e identifica: Win Rate, Drawdown, Profit Factor, numero trade. Dai consigli di miglioramento in italiano."
+                )
+                response = await model.generate_content_async(f"Analizza questo report MT5:\n{text[:3000]}")
+                ai_analysis = response.text
             except Exception as e:
                 logger.error(f"PDF AI analysis error: {e}")
                 ai_analysis = "Analisi AI non disponibile"
