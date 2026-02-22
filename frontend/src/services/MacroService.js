@@ -68,10 +68,15 @@ export const MacroService = {
                 technical: {
                     zScore: 1.85,
                     percentile52W: 92,
-                    concentration4: 42.5,
-                    concentration8: 68.2,
-                    oiCorrelation: 0.84
+                    concentration4: 25.4,
+                    concentration8: 38.2,
+                    oiCorrelation: 0.88
                 },
+                interpretation: [
+                    "Le istituzioni continuano ad accumulare posizioni long sull'indice S&P 500.",
+                    "Il sentiment prevalente è fortemente rialzista con percentile al 92%.",
+                    "Rischio di crowding elevato ma supportato dai flussi di capitale."
+                ],
                 rollingBias: [
                     { label: 'W-3', value: 45, isCurrent: false },
                     { label: 'W-2', value: 62, isCurrent: false },
@@ -93,12 +98,17 @@ export const MacroService = {
                 change: -8400,
                 sentiment: 'BEARISH',
                 technical: {
-                    zScore: -2.15,
+                    zScore: -0.85,
                     percentile52W: 12,
-                    concentration4: 55.8,
-                    concentration8: 78.4,
-                    oiCorrelation: -0.65
+                    concentration4: 42.1,
+                    concentration8: 58.4,
+                    oiCorrelation: -0.45
                 },
+                interpretation: [
+                    "Forte scarico istituzionale sul Nasdaq in vista delle trimestrali.",
+                    "Il percentile al 12% suggerisce un estremo pessimismo dei grandi trader.",
+                    "Possibile segnale di capitolazione imminente."
+                ],
                 rollingBias: [
                     { label: 'W-3', value: 55, isCurrent: false },
                     { label: 'W-2', value: 40, isCurrent: false },
@@ -126,6 +136,11 @@ export const MacroService = {
                     concentration8: 52.6,
                     oiCorrelation: 0.92
                 },
+                interpretation: [
+                    "L'oro vede il più rapido accumulo degli ultimi 8 mesi.",
+                    "Posizionamento estremo (98%), segnale di forte avversione al rischio.",
+                    "Istituzioni usano il metallo giallo come copertura inflattiva."
+                ],
                 rollingBias: [
                     { label: 'W-3', value: 72, isCurrent: false },
                     { label: 'W-2', value: 85, isCurrent: false },
@@ -153,6 +168,11 @@ export const MacroService = {
                     concentration8: 42.1,
                     oiCorrelation: 0.15
                 },
+                interpretation: [
+                    "L'Euro rimane in una fase di consolidamento istituzionale.",
+                    "Dati COT bilanciati, assenza di forte direzionalità smart money.",
+                    "Monitorare variazione OI per conferme trend."
+                ],
                 rollingBias: [
                     { label: 'W-3', value: 48, isCurrent: false },
                     { label: 'W-2', value: 52, isCurrent: false },

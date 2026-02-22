@@ -26,7 +26,8 @@ import {
   Globe,
   Bitcoin,
   Calculator,
-  Gauge
+  Gauge,
+  Database
 } from 'lucide-react';
 
 const navItems = [
@@ -36,11 +37,12 @@ const navItems = [
   { path: '/news', icon: Newspaper, label: 'News', iconClass: 'icon-news' },
   { path: '/macro', icon: Globe, label: 'Macro', iconClass: 'icon-macro' },
   { path: '/risk', icon: AlertTriangle, label: 'Risk', iconClass: 'icon-risk' },
-  { path: '/cot', icon: TrendingUp, label: 'COT', iconClass: 'icon-cot' },
+  { path: '/cot', icon: Users, label: 'COT', iconClass: 'icon-cot' },
   { path: '/options', icon: Activity, label: 'Options', iconClass: 'icon-options' },
   { path: '/statistics', icon: LineChart, label: 'Stats', iconClass: 'icon-stats' },
   { path: '/performance', icon: Gauge, label: 'Performance', iconClass: 'icon-performance' },
   { path: '/strategy', icon: Target, label: 'Strategia', iconClass: 'icon-strategy' },
+  { path: '/backtests', icon: Database, label: 'Backtests', iconClass: 'icon-database' },
   { path: '/montecarlo', icon: Dices, label: 'Monte Carlo', iconClass: 'icon-montecarlo' },
   { path: '/calculator', icon: Calculator, label: 'Calcolatore', iconClass: 'icon-calculator' },
   { path: '/journal', icon: BookOpen, label: 'Journal', iconClass: 'icon-journal' },

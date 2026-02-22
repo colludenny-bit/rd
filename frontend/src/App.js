@@ -11,6 +11,7 @@ import { MarketProvider } from './contexts/MarketContext';
 // Layout
 import Layout from './components/layout/Layout';
 import { LockScreen } from './components/layout/LockScreen';
+import { IntroScreen } from './components/layout/IntroScreen';
 
 // Pages
 import AuthPage from './components/pages/AuthPage';
@@ -34,6 +35,7 @@ import MacroEconomyPage from './components/pages/MacroEconomyPage';
 import CryptoPage from './components/pages/CryptoPage';
 import CalculatorPage from './components/pages/CalculatorPage';
 import PerformancePage from './components/pages/PerformancePage';
+import BacktestPage from './components/pages/BacktestPage';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -108,6 +110,7 @@ function AppRoutes() {
         <Route path="options" element={<OptionsFlowPage />} />
         <Route path="statistics" element={<StatisticsPage />} />
         <Route path="performance" element={<PerformancePage />} />
+        <Route path="backtests" element={<BacktestPage />} />
         <Route path="montecarlo" element={<MonteCarloPage />} />
         <Route path="calculator" element={<CalculatorPage />} />
         <Route path="crypto" element={<CryptoPage />} />
@@ -126,13 +129,16 @@ function AppRoutes() {
 }
 
 function App() {
-  const [isLocked, setIsLocked] = useState(true);
+  const [isIntroComplete, setIsIntroComplete] = useState(true);
+  const [isLocked, setIsLocked] = useState(false);
 
   return (
     <ThemeProvider>
       <AuthProvider>
         <MarketProvider>
-          {isLocked ? (
+          {!isIntroComplete ? (
+            <IntroScreen onComplete={() => setIsIntroComplete(true)} />
+          ) : isLocked ? (
             <LockScreen onUnlock={() => setIsLocked(false)} />
           ) : (
             <BrowserRouter>

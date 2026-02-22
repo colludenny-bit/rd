@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 import {
   Settings, Moon, Sun, Globe, User, Bell, Shield, Palette,
-  Lock, Key, ExternalLink, Check, X, Eye, EyeOff,
+  Lock, Key, ExternalLink, Check, X, Eye, EyeOff, ChevronDown,
   TrendingUp, Download, Trash2, Volume2, Zap, Database
 } from 'lucide-react';
 
@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showTVModal, setShowTVModal] = useState(false);
   const [showAPIModal, setShowAPIModal] = useState(false);
+  const [showAPIRoadmap, setShowAPIRoadmap] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [showPasswords, setShowPasswords] = useState({});
   const [tvConnected, setTVConnected] = useState(false);
@@ -236,6 +237,146 @@ export default function SettingsPage() {
             <Button variant="outline" className="rounded-xl" onClick={handleExportData}>
               <Download className="w-4 h-4 mr-2" /> Export
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+
+      {/* Live Integrations - API Roadmap */}
+      <Card className="bg-card/80 border-border/50 border-[#00D9A5]/20" data-testid="live-integrations-settings">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="w-5 h-5 text-[#00D9A5]" />
+            Integrazioni Live - Roadmap
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Lista API e fonti dati da connettere per sistema analisi multi-sorgente completo:
+          </p>
+
+          {/* Active (Mock Data) */}
+          <div>
+            <h4 className="text-sm font-bold text-emerald-400 mb-3 flex items-center gap-2">
+              <Check className="w-4 h-4" /> Attivo (Dati Mock)
+            </h4>
+            <div className="space-y-2 ml-6">
+              <p className="text-sm text-white/60">• ATR: Valori mock statici</p>
+              <p className="text-sm text-white/60">• VIX: 18.5 (fisso)</p>
+              <p className="text-sm text-white/60">• COT: Mock percentuali</p>
+              <p className="text-sm text-white/60">• Options: Mock call ratio</p>
+            </div>
+          </div>
+
+          {/* To Implement - Collapsible */}
+          <div>
+            <button 
+              onClick={() => setShowAPIRoadmap(!showAPIRoadmap)}
+              className="w-full flex items-center justify-between p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30 hover:bg-yellow-500/20 transition"
+            >
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-400" />
+                <h4 className="text-sm font-bold text-yellow-400">Da Implementare (6 API)</h4>
+              </div>
+              <motion.div
+                animate={{ rotate: showAPIRoadmap ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="w-4 h-4 text-yellow-400" />
+              </motion.div>
+            </button>
+            
+            <AnimatePresence>
+              {showAPIRoadmap && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-4 mt-4">
+                    {/* MATAF */}
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-sm font-bold text-white mb-1">1. ATR & Volatilità Real-Time</p>
+                      <p className="text-xs text-white/50 mb-2">Fonte: MATAF Volatility API</p>
+                      <ul className="text-xs text-white/40 space-y-1 ml-4">
+                        <li>• ATR giornaliero per asset</li>
+                        <li>• Picchi volatilità oraria (3 fasce)</li>
+                        <li>• Aggiornamento: Ogni ora</li>
+                      </ul>
+                    </div>
+
+                    {/* CFTC */}
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-sm font-bold text-white mb-1">2. COT (Commitment of Traders)</p>
+                      <p className="text-xs text-white/50 mb-2">Fonte: CFTC</p>
+                      <ul className="text-xs text-white/40 space-y-1 ml-4">
+                        <li>• Report TFF per Indici/EURUSD</li>
+                        <li>• Disaggregated COT per XAU</li>
+                        <li>• Aggiornamento: Venerdì 15:30 ET</li>
+                      </ul>
+                    </div>
+
+                    {/* VIX */}
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-sm font-bold text-white mb-1">3. VIX Real-Time</p>
+                      <p className="text-xs text-white/50 mb-2">Fonte: CBOE / Yahoo Finance</p>
+                      <ul className="text-xs text-white/40 space-y-1 ml-4">
+                        <li>• VIX attuale + Delta 1h/4h/day</li>
+                        <li>• Percentile 52 settimane</li>
+                        <li>• Aggiornamento: Real-time</li>
+                      </ul>
+                    </div>
+
+                    {/* Options */}
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-sm font-bold text-white mb-1">4. Options Data</p>
+                      <p className="text-xs text-white/50 mb-2">Fonte: TradingView / CBOE</p>
+                      <ul className="text-xs text-white/40 space-y-1 ml-4">
+                        <li>• QQQ/SPY/GLD Options Chain</li>
+                        <li>• Max OI, Call/Put ratio, Gamma flip</li>
+                        <li>• Aggiornamento: Ogni 15 minuti</li>
+                      </ul>
+                    </div>
+
+                    {/* Calendar */}
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-sm font-bold text-white mb-1">5. Calendar Economico</p>
+                      <p className="text-xs text-white/50 mb-2">Fonte: Investing.com / ForexFactory</p>
+                      <ul className="text-xs text-white/40 space-y-1 ml-4">
+                        <li>• Eventi high-impact giornalieri</li>
+                        <li>• Previous/Forecast/Actual</li>
+                        <li>• Countdown prossimo evento</li>
+                      </ul>
+                    </div>
+
+                    {/* Live Prices */}
+                    <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+                      <p className="text-sm font-bold text-white mb-1">6. Prezzi Live</p>
+                      <p className="text-xs text-white/50 mb-2">Fonte: TradingView / Binance / FXCM</p>
+                      <ul className="text-xs text-white/40 space-y-1 ml-4">
+                        <li>• NAS100, SP500, EURUSD, XAUUSD</li>
+                        <li>• WebSocket connection</li>
+                        <li>• Aggiornamento: Tick-by-tick</li>
+                      </ul>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Priority Queue */}
+          <div className="p-4 bg-[#00D9A5]/10 border border-[#00D9A5]/30 rounded-lg">
+            <h4 className="text-sm font-bold text-[#00D9A5] mb-2">📋 Priority Queue</h4>
+            <ol className="text-xs text-white/70 space-y-1">
+              <li>1. VIX Real-Time (facile, alto impatto)</li>
+              <li>2. Prezzi Live (essenziale)</li>
+              <li>3. Calendar Economico (medio impatto)</li>
+              <li>4. ATR MATAF (alta priorità per picchi)</li>
+              <li>5. Options Data (complesso)</li>
+              <li>6. COT (settimanale, bassa urgenza)</li>
+            </ol>
           </div>
         </CardContent>
       </Card>

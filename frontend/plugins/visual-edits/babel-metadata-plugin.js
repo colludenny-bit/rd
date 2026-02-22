@@ -885,6 +885,8 @@ const babelMetadataPlugin = ({ types: t }) => {
           state.file?.opts?.filename ||
           state.file?.sourceFileName ||
           "unknown";
+
+        if (filename.includes("BacktestPage")) return;
         const lineNumber = openingElement.loc?.start.line || 0;
 
         if (!fileNameCache.has(filename)) {
@@ -1011,6 +1013,7 @@ const babelMetadataPlugin = ({ types: t }) => {
           state.file?.sourceFileName ||
           "unknown";
 
+        if (filename.includes("BacktestPage")) return;
         const lineNumber = jsxPath.node.loc?.start.line || 0;
 
         if (!fileNameCache.has(filename)) {

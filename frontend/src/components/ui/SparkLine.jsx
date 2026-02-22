@@ -23,8 +23,11 @@ export const SparkLine = ({
     const min = Math.min(...data);
     const range = max - min || 1;
 
+    const isResponsive = typeof width === 'string';
+    const numericWidth = isResponsive ? 100 : width;
+
     const padding = 4;
-    const chartWidth = width - padding * 2;
+    const chartWidth = numericWidth - padding * 2;
     const chartHeight = height - padding * 2;
 
     // Generate points
@@ -48,6 +51,8 @@ export const SparkLine = ({
         <svg
             width={width}
             height={height}
+            viewBox={`0 0 ${numericWidth} ${height}`}
+            preserveAspectRatio="none"
             className={cn("overflow-visible", className)}
         >
             <defs>
@@ -137,8 +142,11 @@ export const GlowingChart = ({
     const min = Math.min(...data);
     const range = max - min || 1;
 
+    const isResponsive = typeof width === 'string';
+    const numericWidth = isResponsive ? 800 : width;
+
     const padding = 6;
-    const chartWidth = width - padding * 2;
+    const chartWidth = numericWidth - padding * 2;
     const chartHeight = height - padding * 2;
 
     // Generate points
@@ -188,6 +196,8 @@ export const GlowingChart = ({
         <svg
             width={width}
             height={height}
+            viewBox={`0 0 ${numericWidth} ${height}`}
+            preserveAspectRatio="none"
             className={cn("overflow-visible", className)}
         >
             <defs>

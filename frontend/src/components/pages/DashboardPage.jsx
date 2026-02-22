@@ -32,6 +32,7 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
   const [showAssetMenu, setShowAssetMenu] = useState(false);
   const [showColorPalette, setShowColorPalette] = useState(false);
   const [chartLineColor, setChartLineColor] = useState(() => localStorage.getItem('dashboard_chartLineColor') || '#00D9A5');
+  const [expandedDeepInsight, setExpandedDeepInsight] = useState(null); // Track which asset has Deep Insight expanded
 
   // Persist State Changes
   useEffect(() => {
@@ -67,54 +68,195 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
     }
   };
 
+  // --- STRATEGY ENGINE: WEEKLY & DAILY BIAS (Extracted from MacroEconomyPage) ---
+  const getStrategyPhase = () => {
+    const today = new Date();
+    const day = today.getDay(); // 0=Sun, 1=Mon...
+    const date = today.getDate();
+
+    // Cycle Weeks (Simple approx: 1-7=W1, 8-14=W2, 15-21=W3, 22+=W4)
+    // Real implementation should check trading weeks, this is robust approx
+    const weekId = date <= 7 ? '01' : date <= 14 ? '02' : date <= 21 ? '03' : '04';
+
+    // Weekly Strategy Map
+    const weeklyMap = {
+      '01': { status: 'Accumulazione', sub: 'Range Stretto (Poco Direzionale)' },
+      '02': { status: 'Slancio', sub: 'Inizio Trend (Accumula & Parte)' },
+      '03': { status: 'Continuazione', sub: 'Trend Sostenuto (Molto Direzionale)' },
+      '04': { status: 'Esaurimento', sub: 'Presa di Liquidità / Reversal' }
+    };
+
+    // Daily Strategy Map
+    const dailyMap = {
+      1: { title: 'Ranging', desc: 'Espansione solo post-sbilancio' },  // Lun
+      2: { title: 'Accumulo', desc: 'O Ribilanciamento' },              // Mar
+      3: { title: 'Espansione', desc: 'In Ribilanciamento' },           // Mer
+      4: { title: 'Accumulo', desc: 'O Ribilanciamento' },              // Gio
+      5: { title: 'Espansione', desc: 'O Inversione se zone da ribilanciare' }, // Ven
+      0: { title: 'Weekend', desc: 'Analisi Chiusa' },
+      6: { title: 'Weekend', desc: 'Analisi Chiusa' }
+    };
+
+    return {
+      week: { id: weekId, ...weeklyMap[weekId] },
+      day: dailyMap[day] || dailyMap[1] // Default Mon if err
+    };
+  };
+
+  // --- MULTI-SOURCE STRATEGY ENGINE (MOCKED FOR NOW) ---
   const getDailyOutlook = (asset) => {
+    // 1. INPUT DATA (SIMULATED PIPELINE)
+    const price = asset.price;
     const isBull = asset.direction === 'Up';
     const isBear = asset.direction === 'Down';
-    const conf = asset.confidence || 0;
 
-    let conclusion = "Bias Neutrale";
-    let conclusionType = 'neutral';
-    let lines = [
-      "Struttura di mercato in fase laterale.",
-      "Monitorare la rottura dei livelli chiave.",
-      "Incertezza sui volumi direzionali."
-    ];
+    // Get Strategy + Time Phase
+    const strat = getStrategyPhase();
 
-    if (isBull && conf >= 60) {
-      conclusion = "Trend Rialzista Forte";
-      conclusionType = 'bullish';
-      lines = [
-        "Forte spinta rialzista confermata dai volumi.",
-        "Cerca ingressi Long sui ritracciamenti.",
-        "Target primario verso i massimi settimanali."
-      ];
-    } else if (isBull) {
-      conclusion = "Bias Rialzista Moderato";
-      conclusionType = 'bullish';
-      lines = [
-        "Sentiment positivo ma con volatilità.",
-        "Inclinazione rialzista nel breve termine.",
-        "Attenzione a possibili prese di profitto."
-      ];
-    } else if (isBear && conf >= 60) {
-      conclusion = "Trend Ribassista Forte";
-      conclusionType = 'bearish';
-      lines = [
-        "Pressione di vendita dominante.",
-        "Favorire strategie Short in breakout.",
-        "Obiettivo su minimi di periodo."
-      ];
-    } else if (isBear) {
-      conclusion = "Bias Ribassista Moderato";
-      conclusionType = 'bearish';
-      lines = [
-        "Incertezza con tendenza al ribasso.",
-        "Possibile prosecuzione controllata.",
-        "Stop loss stretti consigliati."
-      ];
+    // Block 1: Volatility / Regime (VIX)
+    const vixValue = 18.5; // Simulated live VIX
+    const vixDelta1h = "+0.2";
+    const vixState = vixValue > 20 ? "High Volatility (Risk Off)" : vixValue > 15 ? "Moderate (Caution)" : "Low (Risk On)";
+    const vixShock = false; // No immediate shock
+
+    // Block 2: Macro (Rates/Surprise)
+    const macroSurprise = "Neutral";
+    const ratesTrend = "Hawkish (Yields Rising)";
+
+    // Block 3: News (Theme + Decay)
+    const newsTheme = "Earnings Season";
+    const newsSentiment = "Mixed";
+    const newsImpact = "Medium";
+
+    // Block 4: Positioning (COT - Slow Layer)
+    // Simulated COT data based on asset type
+    const cotData = asset.symbol === 'NAS100' ? {
+      netPosition: "Net Long 35%",
+      change: "+2%",
+      percentile: "78th (Crowded)",
+      category: "Asset Managers"
+    } : asset.symbol === 'XAUUSD' ? {
+      netPosition: "Net Long 60%",
+      change: "-5%",
+      percentile: "92nd (Super Crowded)",
+      category: "Managed Money"
+    } : {
+      netPosition: "Neutral",
+      change: "0%",
+      percentile: "50th",
+      category: "Commercials"
+    };
+
+    // 2. CORRELATION ENGINE -> SCORE & PROBABILITY
+    // Simple weighted logic for demo
+    let score = 50; // Base neutral
+    if (isBull) score += 10;
+    if (cotData.percentile.includes("Crowded")) score -= 5; // Contrarian risk
+    if (vixValue < 20) score += 5; // Favorable regime
+
+    // Add Strategy Weight
+    if (strat.week.id === '03') score += 5; // Trend week bonus
+    if (strat.day.title === 'Espansione') score += 5; // Expansion day bonus
+
+    const probability = Math.min(Math.max(score, 0), 100); // Clamp 0-100
+    const confidence = asset.confidence || 0;
+
+    // 3. IMPULSE CLASSIFICATION
+    // Logic: If score rising -> Prosegue. If diverging -> Diminuisce.
+    // Simulated:
+    let impulseState = "Prosegue";
+    if (vixValue > 25) impulseState = "Diminuisce";
+    if (confidence < 40) impulseState = "Inverte";
+
+    // 4. GENERATE NARRATIVE SUMMARY (Pure Italian, No Parentheses)
+    const directionText = isBull ? "rialzista" : isBear ? "ribassista" : "laterale";
+
+    // -- Dynamic Narrative Construction --
+
+    // 1. Context (Week/Day)
+    const weekMap = { '01': 'prima settimana', '02': 'seconda settimana', '03': 'terza settimana', '04': 'quarta settimana' };
+    const weekName = weekMap[strat.week.id] || `settimana ${strat.week.id}`;
+    const weekPhase = strat.week.status.toLowerCase();
+
+    let contextPhrase = `La tendenza è ${directionText} con una probabilità del ${probability}%. Siamo nella ${weekName} del mese, quella di ${weekPhase}.`;
+
+    if (strat.day.title === "Espansione") {
+      contextPhrase += ` Oggi è una giornata potenzialmente espansiva, ma ricorda che il movimento partirà solo dopo uno sbilanciamento dei prezzi.`;
+    } else if (strat.day.title.includes("Accumulo")) {
+      contextPhrase += ` Oggi ci aspettiamo un mercato in accumulazione o ribilanciamento.`;
+    } else if (strat.day.title === "Ranging") {
+      contextPhrase += ` Oggi il mercato potrebbe rimanere laterale in attesa di liquidità.`;
+    } else {
+      contextPhrase += ` Oggi giornata di ${strat.day.title.toLowerCase()}.`;
     }
 
-    return { conclusion, conclusionType, outlookLines: lines };
+    // 2. Risk (VIX)
+    const riskAdjective = vixValue > 20 ? "alto" : vixValue > 15 ? "moderato" : "basso";
+    const riskNote = vixValue > 20 ? "quindi riduci le size" : vixValue > 15 ? "fai attenzione alla volatilità" : "le condizioni sono favorevoli";
+    const riskPhrase = `Il rischio attuale è ${riskAdjective}, ${riskNote}.`;
+
+    // 3. Institutional (COT)
+    const cotDirection = cotData.netPosition.includes("Long") ? "esposte al rialzo" : cotData.netPosition.includes("Short") ? "esposte al ribasso" : "neutre";
+    const cotPercentage = (cotData.netPosition.match(/\d+/) || ["0"])[0];
+
+    const crowded = cotData.percentile.includes("Crowded");
+    const categoryName = cotData.category === "Asset Managers" ? "grandi gestori" : cotData.category === "Managed Money" ? "fondi speculativi" : "commerciali";
+
+    // "Le mani forti, ovvero i grandi gestori, sono esposte al rialzo al 35% netto."
+    const cotPhrase = `Le mani forti, ovvero i ${categoryName}, sono ${cotDirection} al ${cotPercentage}% netto. ${crowded ? "C'è un eccesso di posizionamento che potrebbe causare rapide liquidazioni contrarie." : "Il posizionamento è nella norma e lascia spazio al trend."}`;
+
+    // 4. Invalidation
+    const invalidationLevel = isBull ? (price * 0.98).toFixed(2) : (price * 1.02).toFixed(2);
+    const invalidationPhrase = `Questa visione sarà annullata se il prezzo dovesse scendere sotto ${invalidationLevel}.`;
+
+    // 5. News Context
+    const newsContext = newsTheme === "Earnings Season" ? "Ricorda che siamo nella stagione delle trimestrali." : `Il tema principale è ${newsTheme}.`;
+
+    // Final Assembly
+    const simpleSummary = `
+      ${contextPhrase}
+      ${riskPhrase} ${cotPhrase}
+      ${newsContext} ${invalidationPhrase}
+    `;
+
+    // 5. DEEP INSIGHT OBJECT
+    const deepInsight = {
+      atrData: asset.atr ? {
+        traveled: Math.round(Math.abs(asset.price - asset.atr.openPrice)),
+        target: asset.atr.daily,
+        percentage: Math.min(Math.round(Math.abs(asset.price - asset.atr.openPrice) / asset.atr.daily * 100), 100)
+      } : null,
+      marketState: impulseState, // "Prosegue", "Diminuisce", "Inverte"
+      vix: `${vixValue} (${vixDelta1h}) - ${vixState}`,
+      cot: `${cotData.category}: ${cotData.netPosition} (${cotData.percentile})`,
+      options: "Gamma Flip Level nearby (Watch 25300)", // Mock
+      weeklyPhase: `Week ${strat.week.id} - ${strat.week.status} (${strat.day.title})`, // Integrated Strategy
+      dailyBias: directionText,
+      volatilityPeaks: [
+        "09:30-10:30 (London Open - High Vol)",
+        "14:30-15:30 (US Open - Macro Data)",
+        "15:30-16:00 (NYSE Close - Unwind)"
+      ],
+      reasoning: `
+        Il modello Multi-Sorgente indica una fase ${directionText} con score ${score}/100.
+        Analisi Ciclica:
+        - Week ${strat.week.id}: ${strat.week.sub}.
+        - Oggi (${strat.day.title}): ${strat.day.desc}.
+        
+        Punti chiave:
+        1. VIX a ${vixValue} segnala un regime di ${vixState}.
+        2. Posizionamento COT (${cotData.netPosition}) mostra ${cotData.percentile.includes("Crowded") ? "potenziale esaustione/squeeze" : "spazio per continuazione"}.
+        3. Livello invalidazione chiave a ${invalidationLevel}.
+        4. Strategia consigliata: ${impulseState === "Prosegue" ? "Buy Pullbacks" : "Reduce Risk / Wait"}.
+      `
+    };
+
+    return {
+      conclusion: directionText,
+      conclusionType: isBull ? 'bullish' : isBear ? 'bearish' : 'neutral',
+      simpleSummary: simpleSummary.replace(/\s+/g, ' ').trim(), // Clean extra spaces
+      deepInsight
+    };
   };
 
   const currentAsset = selectedAsset ? assets.find(a => a.symbol === selectedAsset) : assets[0];
@@ -279,75 +421,79 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
           >
             {visibleAssets.map((asset, index) => {
               const color = chartColors[index % chartColors.length];
-              return (
-                <button
-                  key={asset.symbol}
-                  onClick={() => handleFocusAsset(asset.symbol)}
-                  className="group relative p-4 bg-white rounded-2xl !border !border-slate-400 shadow-[0_20px_50px_rgb(0,0,0,0.1)] hover:shadow-[0_20px_60px_rgb(0,0,0,0.15)] transition-all text-left overflow-hidden dark:bg-white/[0.03] dark:!border-white/10 dark:hover:!border-white/20 dark:shadow-none font-apple"
-                >
-                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity dark:from-white/5" />
+              const outlook = getDailyOutlook(asset);
+              const isDeepExpanded = expandedDeepInsight === asset.symbol;
 
-                  <div className="mb-2 relative z-10 flex items-start justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-white mb-1 tracking-tight">{asset.symbol}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl font-bold text-white tracking-tight">
-                          {asset.price?.toLocaleString()}
+              return (
+                <div
+                  key={asset.symbol}
+                  className="group relative p-4 bg-white rounded-2xl !border !border-slate-400 shadow-[0_20px_50px_rgb(0,0,0,0.1)] hover:shadow-[0_20px_60px_rgb(0,0,0,0.15)] transition-all text-left dark:bg-white/[0.03] dark:!border-white/10 dark:hover:!border-white/20 dark:shadow-none font-apple"
+                >
+                  <div
+                    onClick={() => handleFocusAsset(asset.symbol)}
+                    className="cursor-pointer"
+                  >
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-slate-100 to-transparent opacity-0 group-hover:opacity-100 transition-opacity dark:from-white/5" />
+
+                    <div className="mb-2 relative z-10 flex items-start justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-white mb-1 tracking-tight">{asset.symbol}</h3>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl font-bold text-white tracking-tight">
+                            {asset.price?.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Confidence Percentage - Repositioned to Top Right */}
+                      <div className="flex flex-col items-end">
+                        <span className="text-xs font-black text-white uppercase tracking-[0.2em] leading-none mb-1">Confidenza</span>
+                        <span className="text-lg font-black leading-none text-[#00D9A5]">
+                          {asset.confidence}%
                         </span>
                       </div>
                     </div>
 
-                    {/* Confidence Percentage - Repositioned to Top Right */}
-                    <div className="flex flex-col items-end">
-                      <span className="text-xs font-black text-white uppercase tracking-[0.2em] leading-none mb-1">Confidenza</span>
-                      <span className="text-lg font-black leading-none text-[#00D9A5]">
-                        {asset.confidence}%
-                      </span>
+                    <div className="h-28 -ml-4 relative z-10 overflow-hidden rounded-lg mb-2">
+                      <GlowingChart
+                        data={asset.sparkData || [30, 45, 35, 60, 42, 70, 55, 65, 50, 75]}
+                        width={400}
+                        height={110}
+                        color={color}
+                        showPrice={false}
+                      />
                     </div>
-                  </div>
 
-                  <div className="h-28 -ml-4 relative z-10 overflow-hidden rounded-lg mb-2">
-                    <GlowingChart
-                      data={asset.sparkData || [30, 45, 35, 60, 42, 70, 55, 65, 50, 75]}
-                      width={400}
-                      height={110}
-                      color={color}
-                      showPrice={false}
-                    />
-                  </div>
-
-                  <div className="relative z-10 space-y-3 mt-4">
-                    {/* Bias & Confidence Row - HIGHLIGHTED */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all",
-                        getDailyOutlook(asset).conclusionType === 'bullish' ? "bg-[#00D9A5]/10 border-[#00D9A5]/20 text-[#00D9A5]" :
-                          getDailyOutlook(asset).conclusionType === 'bearish' ? "bg-red-500/10 border-red-500/20 text-red-500" :
-                            "bg-yellow-500/10 border-yellow-500/20 text-yellow-500"
-                      )}>
+                    <div className="relative z-10 space-y-3 mt-4">
+                      {/* Bias & Confidence Row - HIGHLIGHTED */}
+                      <div className="flex items-center gap-2 mb-2">
                         <div className={cn(
-                          "w-2 h-2 rounded-full",
-                          getDailyOutlook(asset).conclusionType === 'bullish' ? "bg-[#00D9A5]" :
-                            getDailyOutlook(asset).conclusionType === 'bearish' ? "bg-red-500" :
-                              "bg-yellow-500"
-                        )} />
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-none">
-                          {getDailyOutlook(asset).conclusion}
-                        </p>
+                          "flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all",
+                          getDailyOutlook(asset).conclusionType === 'bullish' ? "bg-[#00D9A5]/10 border-[#00D9A5]/20 text-[#00D9A5]" :
+                            getDailyOutlook(asset).conclusionType === 'bearish' ? "bg-red-500/10 border-red-500/20 text-red-500" :
+                              "bg-yellow-500/10 border-yellow-500/20 text-yellow-500"
+                        )}>
+                          <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            getDailyOutlook(asset).conclusionType === 'bullish' ? "bg-[#00D9A5]" :
+                              getDailyOutlook(asset).conclusionType === 'bearish' ? "bg-red-500" :
+                                "bg-yellow-500"
+                          )} />
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] leading-none">
+                            {getDailyOutlook(asset).conclusion}
+                          </p>
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Analysis Points - LARGER TEXT */}
-                    <ul className="space-y-2">
-                      {getDailyOutlook(asset).outlookLines.slice(0, 3).map((line, i) => (
-                        <li key={i} className="flex items-start gap-3 text-base font-semibold text-white/95 leading-relaxed tracking-tight">
-                          <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-[#00D9A5]/60 shadow-[0_0_8px_#00D9A5]/40 flex-shrink-0" />
-                          <span>{line}</span>
-                        </li>
-                      ))}
-                    </ul>
+                      {/* Simple Summary - Narrative Paragraph */}
+                      <p className="text-sm text-white/90 leading-relaxed">
+                        {outlook.simpleSummary}
+                      </p>
+                    </div>
                   </div>
-                </button>
+
+
+                </div>
               );
             })}
           </motion.div>
@@ -417,14 +563,92 @@ const AssetChartPanel = ({ assets, favoriteCharts, onFavoriteChange }) => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div className="md:col-span-2">
                 <h5 className="text-xs font-bold text-white uppercase tracking-[0.2em] mb-4">Analisi Strutturale</h5>
-                <ul className="space-y-3">
-                  {dailyOutlook.outlookLines.map((line, i) => (
-                    <li key={i} className="flex items-start gap-4 text-base font-semibold text-white/95 leading-relaxed tracking-tight">
-                      <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-[#00D9A5] shadow-[0_0_10px_#00D9A5] flex-shrink-0" />
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
+                <p className="text-base font-semibold text-white/95 leading-relaxed tracking-tight">
+                  {dailyOutlook.simpleSummary}
+                </p>
+
+                {/* Deep Insight Button - Only in Focus View */}
+                <button
+                  onClick={() => setExpandedDeepInsight(expandedDeepInsight === currentAsset.symbol ? null : currentAsset.symbol)}
+                  className="mt-6 w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#00D9A5]/10 border border-[#00D9A5]/30 hover:bg-[#00D9A5]/20 transition-all"
+                >
+                  <span className="text-sm font-bold text-[#00D9A5] uppercase tracking-wider">Deep Insight - Analisi Tecnica</span>
+                  <ChevronDown className={cn("w-5 h-5 text-[#00D9A5] transition-transform duration-300", expandedDeepInsight === currentAsset.symbol && "rotate-180")} />
+                </button>
+
+                {/* Expandable Deep Insight Panel */}
+                <AnimatePresence>
+                  {expandedDeepInsight === currentAsset.symbol && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4 p-5 bg-white/5 rounded-xl border border-white/10 space-y-4">
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="col-span-1">
+                            {dailyOutlook.deepInsight?.atrData ? (
+                              <>
+                                <p className="text-xs text-white/40 uppercase font-bold mb-2">ATR / Range Daily</p>
+                                <div className="relative h-2 bg-white/10 rounded-full overflow-hidden mb-1">
+                                  <div
+                                    className="absolute top-0 left-0 h-full bg-[#00D9A5] transition-all duration-500"
+                                    style={{ width: `${dailyOutlook.deepInsight.atrData.percentage}%` }}
+                                  />
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] text-white/50 tracking-wide font-medium">
+                                  <span>{dailyOutlook.deepInsight.atrData.traveled} pts</span>
+                                  <span>Target: {dailyOutlook.deepInsight.atrData.target} pts</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div>
+                                <p className="text-xs text-white/40 uppercase font-bold mb-1">ATR / Range</p>
+                                <p className="text-base text-white/90 font-semibold">N/A</p>
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-xs text-white/40 uppercase font-bold mb-1">Impulso / Momentum</p>
+                            <p className="text-base text-white/90 font-semibold">{dailyOutlook.deepInsight?.marketState || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-white/40 uppercase font-bold mb-1">VIX & Regime</p>
+                            <p className="text-base text-white/90 font-semibold">{dailyOutlook.deepInsight?.vix || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-white/40 uppercase font-bold mb-1">COT (Mani Forti)</p>
+                            <p className="text-base text-white/90 font-semibold">{dailyOutlook.deepInsight?.cot || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-white/40 uppercase font-bold mb-1">Options Flow</p>
+                            <p className="text-base text-white/90 font-semibold">{dailyOutlook.deepInsight?.options || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-white/40 uppercase font-bold mb-1">Weekly Phase</p>
+                            <p className="text-base text-white/90 font-semibold">{dailyOutlook.deepInsight?.weeklyPhase || 'N/A'}</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-white/40 uppercase font-bold mb-2">Picchi Volatilità Oraria (MATAF)</p>
+                          <div className="flex flex-wrap gap-2">
+                            {dailyOutlook.deepInsight?.volatilityPeaks?.map((peak, i) => (
+                              <span key={i} className="text-sm px-3 py-1.5 bg-[#00D9A5]/10 text-[#00D9A5] rounded-lg font-medium">{peak}</span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-white/10">
+                          <p className="text-xs text-white/40 uppercase font-bold mb-2">Analisi Tecnica Completa</p>
+                          <p className="text-base text-white/80 leading-relaxed">{dailyOutlook.deepInsight?.reasoning || 'Analisi in corso...'}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className="flex flex-col justify-between">
